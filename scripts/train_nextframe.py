@@ -41,7 +41,9 @@ def main() -> None:
     distributed = world > 1
     if distributed:
         torch.distributed.init_process_group(backend=os.environ.get("DDP_BACKEND", "nccl"))
-    device = f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu"
+    # on a single-GPU machine several ranks share device 0 (smoke test only); real multi-GPU maps 1:1
+    dev_index = local_rank % max(torch.cuda.device_count(), 1)
+    device = f"cuda:{dev_index}" if torch.cuda.is_available() else "cpu"
     if device.startswith("cuda"):
         torch.cuda.set_device(device)
     torch.manual_seed(args.seed + rank)
@@ -53,7 +55,7 @@ def main() -> None:
     ema = copy.deepcopy(model).eval()
     for p in ema.parameters():
         p.requires_grad_(False)
-    net = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank]) if distributed else model
+    net = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dev_index]) if distributed else model
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
     sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: min(1.0, (s + 1) / 500))
     rng = np.random.default_rng(args.seed + rank)

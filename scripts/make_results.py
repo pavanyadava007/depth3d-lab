@@ -145,6 +145,28 @@ def track_a() -> tuple[str, list[list[str]]]:
             rows.append([r["variant"], b, f(ra["abs_rel"]), f(sc["abs_rel"]), f(ra["rmse"], 2), f(sc["rmse"], 2), f"{ra['n_points']:,}"])
     lines.append(table(["variant", "bin", "AbsRel raw", "AbsRel scaled", "RMSE raw [m]", "RMSE scaled [m]", "points"], rows))
     lines.append("")
+    lines.append("### Reading the scale error (generated from the tables above)")
+    lines.append("")
+    for r in results:
+        raw, sc = r["raw"]["abs_rel"], r["scaled"]["abs_rel"]
+        share = (raw - sc) / raw if raw else float("nan")
+        g = r["per_group_raw"]
+        worst = max(g, key=lambda k: g[k]["abs_rel"])
+        best = min(g, key=lambda k: g[k]["abs_rel"])
+        sb = r["scale_factor_by_camera"].get("CAM_BACK", {}).get("median")
+        sf = r["scale_factor_by_camera"].get("CAM_FRONT", {}).get("median")
+        far = r["raw"].get("frac_pred_above_max")
+        txt = (f"{r['variant']}: per-image median scaling lowers AbsRel from {f(raw)} to {f(sc)}, i.e. {f(100 * share, 0)}% of the "
+               f"raw error is a per-image scale error and the rest is shape error. Worst camera group raw: {worst} "
+               f"(AbsRel {f(g[worst]['abs_rel'])}), best: {best} ({f(g[best]['abs_rel'])}). Median scale factor CAM_FRONT {f(sf, 2)} vs CAM_BACK {f(sb, 2)}.")
+        foc = r.get("focal_by_camera", {})
+        if foc.get("CAM_BACK") and foc.get("CAM_FRONT"):
+            txt += (f" Focal estimate / true focal: CAM_FRONT {f(foc['CAM_FRONT']['median_ratio_pred_over_gt'], 2)}, "
+                    f"CAM_BACK {f(foc['CAM_BACK']['median_ratio_pred_over_gt'], 2)}.")
+        if far is not None:
+            txt += f" Fraction of LiDAR pixels where the raw prediction exceeded 80 m (clipped before scoring): {f(100 * far, 2)}%."
+        lines.append(txt)
+        lines.append("")
     lines.append("### Per-image AbsRel, mean with 95% bootstrap CI over images")
     lines.append("")
     rows = [[r["variant"], ci(r["per_image_abs_rel_raw_ci"]), ci(r["per_image_abs_rel_scaled_ci"])] for r in results]
@@ -243,6 +265,16 @@ def track_c() -> tuple[str, list[list[str]]]:
                          f"{r['n_gaussians_final']:,}", f(r["train_time_s"] / 60, 1)])  # fmt: skip
     lines.append(table(["variant", "depth w", "PSNR test", "SSIM", "LPIPS (alex)", "init gaussians", "final gaussians",
                         f"train min ({GPU})", "render ms/view", "PSNR train subset"], rows))  # fmt: skip
+    lines.append("")
+    by = {r["name"]: r for r in rs}
+    if "random" in by and "lidar" in by:
+        d = by["lidar"]["test"]["psnr"]["mean"] - by["random"]["test"]["psnr"]["mean"]
+        lines.append(f"LiDAR init vs random init: {f(d, 2)} dB PSNR on held-out views (positive favours LiDAR init).")
+    for w in ("lidar_depth0.05", "lidar_depth0.2"):
+        if w in by and "lidar" in by:
+            d = by[w]["test"]["psnr"]["mean"] - by["lidar"]["test"]["psnr"]["mean"]
+            dl = by[w]["test"]["lpips_alex"]["mean"] - by["lidar"]["test"]["lpips_alex"]["mean"]
+            lines.append(f"{w} vs lidar: {f(d, 2)} dB PSNR, {f(dl)} LPIPS (negative LPIPS favours depth supervision).")
     lines.append("")
     lines.append("### Held-out PSNR per camera")
     lines.append("")
@@ -364,6 +396,9 @@ def write_status_block() -> None:
     nf = load("synthesis_nextframe.json")
     if nf:
         rows.append(["Track E eval", f"{nf['n_test_pairs']} pairs, {f(nf['sampling_ms_per_frame'], 1)} ms/sample", f(nf["sampling_ms_per_frame"] * nf["n_test_pairs"] / 60000, 1), "ran"])
+    dd = load("ddp_smoke.json")
+    if dd:
+        rows.append(["Track E DDP smoke (torchrun, gloo, 2 ranks on ONE GPU)", f"{dd['steps']} steps, world size {dd['world_size']}", f(dd["train_time_s"] / 60, 2), "ran (smoke only, not a multi-GPU test)"])
     sh = load("sharp_nvs.json")
     if sh:
         if sh.get("status") == "ok":

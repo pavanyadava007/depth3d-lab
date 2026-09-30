@@ -1,0 +1,32 @@
+{
+ "mode": "fm",
+ "gpu": "NVIDIA L4",
+ "world_size": 2,
+ "n_params": 12407043,
+ "steps": 20,
+ "steps_requested": 20,
+ "max_minutes": 40.0,
+ "batch": 16,
+ "lr": 0.0002,
+ "seed": 0,
+ "n_train_pairs": 1865,
+ "train_time_s": 4.9179527759552,
+ "steps_per_s": 4.066732827892081,
+ "curve_columns": [
+  "step",
+  "loss",
+  "elapsed_s"
+ ],
+ "curve": [
+  [
+   0,
+   1.711546778678894,
+   0.9883453845977783
+  ],
+  [
+   10,
+   1.4126107692718506,
+   3.0829904079437256
+  ]
+ ]
+}
