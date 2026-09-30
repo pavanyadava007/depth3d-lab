@@ -12,12 +12,67 @@ not generated yet
 
 ## What ran
 
-(filled in at the end of the build)
+- Environment: uv venv (Python 3.10), torch 2.7.1+cu126, gsplat 1.5.3 (CUDA extension JIT-compiled once, about
+  100 s), Depth Pro from apple/ml-depth-pro (git), VGGT from facebookresearch/vggt (git), transformers for
+  Depth Anything V2 metric outdoor Large, SHARP from apple/ml-sharp (installed with --no-deps into the same venv
+  so that its pinned requirements could not replace torch). All weights are in ~/.cache (Hugging Face hub and
+  torch hub); none are committed.
+- Track A: LiDAR GT for all 404 keyframes x 6 cameras; Depth Pro (own focal and known focal from one forward
+  pass) and Depth Anything V2 metric outdoor Large on all 2,424 images. The first Depth Pro pass was scored
+  without clipping and a handful of sky-like predictions (clamped by the model to 10 km) dominated SqRel and RMSE;
+  the scoring was changed to the KITTI protocol (predictions clipped to [1, 80] m, fraction of clipped pixels
+  reported) and Depth Pro was re-run. The unclipped json files are kept under logs/old/ and are not used anywhere.
+  The known-focal path was verified bit-exactly against the library's own infer(f_px) on CPU
+  (results/depth_pro_focal_check.json).
+- Track C: gsplat rasteriser with an own training loop and gsplat's DefaultStrategy densification, scene-0916
+  (fewest moving annotations), 216 train / 30 held-out views at 800x450, four variants at a 7k-step budget and,
+  because a run takes a few minutes on the L4, the same four variants again at 15k steps. Depth supervision uses
+  the Depth Pro maps cached during Track A, scale-aligned per image to LiDAR. Previews and CAM_FRONT path videos
+  are in docs/img/.
+- Track B: VGGT-1B in bf16, 40 six-camera rigs and 40 five-frame CAM_FRONT windows, Depth Pro on the same
+  reference images so that the paired comparison uses identical LiDAR pixels; relative pose errors against nuScenes
+  ego poses and calibration. Pairs with a stationary ego vehicle (GT baseline below 0.1 m) are excluded from the
+  translation-direction statistic because the direction of a zero vector is undefined; their count is reported.
+- Track E: CAM_FRONT keyframes + sweeps at 128x64, consecutive pairs, two held-out scenes; a 12M-parameter UNet
+  trained with conditional flow matching (10% condition dropout) and the same UNet trained as an L2 regression
+  baseline, both under a 40-minute wall-clock cap while sharing the GPU with each other (steps actually done are in
+  the json). Evaluation with one Euler sample per test pair, plus copy-current-frame baseline, plus FID of
+  unconditional samples via torchmetrics / torch-fidelity. The DDP code path was smoke-tested with torchrun and
+  two gloo ranks on the single GPU (results/ddp_smoke.json); this is not a multi-GPU test.
+- Track D: SHARP Gaussians from one CAM_FRONT keyframe per scene, rendered at the identity pose, at the next
+  12 Hz sweep and at the next keyframe using the true relative pose from nuScenes.
+- Site: scripts/build_space.py builds site/ (Plotly charts, depth viewer, three.js point cloud, gsplat.js splat
+  viewer, videos and grids). Nothing was uploaded anywhere; no account or token was created.
 
 ## What did not run, and why
 
-(filled in at the end of the build)
+- A third monocular metric model (UniDepthV2 / Metric3Dv2 / MoGe-2): a MoGe-2 wrapper exists in depth3d/mono.py
+  but the package was not installed and the model was not run, to keep the GPU queue inside the time budget.
+  Its row is therefore absent from the tables ("not measured").
+- Three seeds for 3DGS and for Track E: only seed 0 was run. Per-view standard deviations and bootstrap CIs over
+  views / pairs are reported instead; they do not capture seed variance.
+- Track B with MASt3R / DUSt3R fallback: not needed, VGGT ran.
+- Full-resolution 3DGS training and the use of 12 Hz sweeps for 3DGS: not run (keyframes only, half resolution).
 
 ## Caveats
 
-(filled in at the end of the build)
+- Timings: every reported timing is from the NVIDIA L4 in this machine. The GPU queue ran the Track A, B and C
+  jobs one after another on an otherwise idle GPU, with two exceptions: a few short smoke tests shared the GPU
+  during the Depth Pro re-run (its mean ms/image is therefore slightly inflated; the median is reported in the
+  tables), and the two Track E trainings deliberately shared the GPU with each other.
+- Depth GT is sparse LiDAR with the usual projection artefacts (occlusion at depth discontinuities, moving
+  objects, rolling shutter); z-buffering keeps the nearest return per pixel but cannot remove points that are
+  occluded for the camera and visible for the LiDAR.
+- Depth Pro assumes the principal point at the image centre when it turns field of view into focal length; the
+  nuScenes principal points are within a few pixels of the centre horizontally and about 40 px vertically.
+- Track C metrics are for half-resolution renders against half-resolution photos; the scene is treated as
+  static; camera exposures differ between the six cameras; no sky model.
+- Track B compares two differently aligned quantities by necessity (VGGT has no metric scale); both a per-sequence
+  and a per-image alignment of VGGT are reported to make this visible.
+- Track E: the copy-current-frame baseline is strong because consecutive frames are 0.1 s apart; a small model
+  trained for a fixed wall-clock budget is not expected to beat it in PSNR. FID over a few hundred 128x64 frames
+  is only indicative.
+- Track D: SHARP's Gaussians are rendered with gsplat through SHARP's own renderer; uncovered pixels are excluded
+  from PSNR/SSIM and filled with the real frame for LPIPS, so LPIPS is slightly optimistic when coverage is low.
+- Everything is nuScenes-mini (10 scenes). No statement here should be read as a claim about full nuScenes or
+  other data.
