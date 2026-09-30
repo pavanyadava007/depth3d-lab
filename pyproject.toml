@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "depth3d-lab"
+version = "0.1.0"
+description = "Zero-shot depth, feed-forward 3D reconstruction and 3D Gaussian Splatting on nuScenes-mini, measured on an NVIDIA L4"
+authors = [{ name = "Pavan Yadav Annappa", email = "pavanyadava07@gmail.com" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy<2",
+  "pyquaternion",
+  "scipy",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.setuptools.packages.find]
+include = ["depth3d*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["third_party", ".venv", "site"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "UP"]
+ignore = ["B008", "B905", "E741"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
