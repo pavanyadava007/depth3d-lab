@@ -18,8 +18,7 @@ import torch
 from PIL import Image
 
 from depth3d.metrics import bootstrap_mean_ci, paired_bootstrap
-from depth3d.nextframe import UNet, fm_sample, psnr_batch, regression_predict, to_tensor
-from scripts.train_nextframe import load_pairs
+from depth3d.nextframe import HOLDOUT_SCENES, UNet, fm_sample, load_pairs, psnr_batch, regression_predict, to_tensor
 
 
 def load(path: str, device: str) -> UNet:
@@ -76,7 +75,7 @@ def main() -> None:
         del res["regression"]
     out = {
         "dataset": "nuScenes v1.0-mini CAM_FRONT keyframes + sweeps, 128x64, consecutive pairs (0.1 s)",
-        "holdout_scenes": ["scene-0655", "scene-1094"],
+        "holdout_scenes": list(HOLDOUT_SCENES),
         "n_test_pairs": int(len(test_idx)),
         "gpu": "NVIDIA L4",
         "sampler": f"Euler, {args.steps} steps",

@@ -14,6 +14,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+HOLDOUT_SCENES = ("scene-0655", "scene-1094")
+
+
+def load_pairs(path: str):
+    """Return (frames_u8, train_pair_idx, test_pair_idx); pair i is (frame i, frame i+1) inside one scene."""
+    d = np.load(path)
+    frames, scene = d["frames"], d["scene"]
+    same = scene[1:] == scene[:-1]
+    idx = np.nonzero(same)[0]
+    train_idx = idx[~np.isin(scene[idx], HOLDOUT_SCENES)]
+    test_idx = idx[np.isin(scene[idx], HOLDOUT_SCENES)]
+    return frames, train_idx, test_idx
+
 
 def timestep_embedding(t: torch.Tensor, dim: int) -> torch.Tensor:
     half = dim // 2

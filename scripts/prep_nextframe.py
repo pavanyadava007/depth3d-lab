@@ -15,8 +15,8 @@ from PIL import Image
 from tqdm import tqdm
 
 from depth3d import nusc as N
+from depth3d.nextframe import HOLDOUT_SCENES
 
-HOLDOUT_SCENES = ("scene-0655", "scene-1094")
 W, H = 128, 64
 
 

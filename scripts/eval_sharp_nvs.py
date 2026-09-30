@@ -95,7 +95,8 @@ def run(args) -> dict:
     rows = []
     pred_ms, render_ms = [], []
     eval_size = (800, 450)
-    for si, scene in enumerate(nusc.scene):
+    scenes = nusc.scene[: args.limit] if args.limit else nusc.scene
+    for si, scene in enumerate(scenes):
         toks = N.scene_sample_tokens(nusc, scene["name"])
         ti = min(args.t_index, len(toks) - 2)
         f_t = N.cam_frame(nusc, toks[ti], "CAM_FRONT")
@@ -181,6 +182,7 @@ def run(args) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--t-index", type=int, default=10)
+    ap.add_argument("--limit", type=int, default=0, help="debug: only the first N scenes")
     ap.add_argument("--img-dir", default="docs/img")
     ap.add_argument("--out", default="results/sharp_nvs.json")
     args = ap.parse_args()

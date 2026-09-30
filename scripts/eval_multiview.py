@@ -2,8 +2,9 @@
 
 Setting (i): the 6-camera rig at one timestamp (wide baseline, low overlap), reference = CAM_FRONT.
 Setting (ii): 5 consecutive CAM_FRONT keyframes (forward motion, 2 Hz), reference = centre frame.
-Depth on the reference view is aligned with ONE scale per sequence (median GT/pred over all views'
-LiDAR pixels), with a sim(3) (Umeyama on camera centres) scale, and with per-image median scaling.
+Depth on the reference view is aligned with ONE scale per sequence (median(GT)/median(pred) over all views'
+LiDAR pixels, the same estimator that is used per image), with a sim(3) (Umeyama on camera centres) scale,
+and with per-image median scaling.
 Relative camera poses are compared with nuScenes ego poses + calibration. Depth Pro is run on the same
 reference images so that the mono-vs-multi-view comparison uses identical LiDAR pixels.
 """
@@ -53,13 +54,14 @@ def eval_sequence(vggt, mono, nusc, frames: list, ref: int, gt_cache: Path, view
     S = len(frames)
     gts = [build_gt(nusc, f.sample_token, f.channel, cache_dir=gt_cache) for f in frames]
     preds_full = [upsample(out["depth"][i], frames[i].height, frames[i].width) for i in range(S)]
-    # one scale per sequence from all views
-    ratios = []
+    # one scale per sequence from all views: median(GT) / median(pred), the same estimator as per image
+    all_pz, all_gz = [], []
     for i in range(S):
         pz = preds_full[i][gts[i]["v"], gts[i]["u"]]
         ok = pz > 1e-3
-        ratios.append(gts[i]["z"][ok] / pz[ok])
-    s_seq = float(np.median(np.concatenate(ratios)))
+        all_pz.append(pz[ok])
+        all_gz.append(gts[i]["z"][ok])
+    s_seq = median_scale(np.concatenate(all_pz), np.concatenate(all_gz))
     # camera poses: predicted cam-from-world -> cam-to-world (pred world = first camera)
     T_pred_c2w = []
     for i in range(S):

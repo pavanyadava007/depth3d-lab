@@ -17,18 +17,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from depth3d.nextframe import UNet, fm_loss, regression_loss, to_tensor
-from scripts.prep_nextframe import HOLDOUT_SCENES
-
-
-def load_pairs(path: str):
-    d = np.load(path)
-    frames, scene = d["frames"], d["scene"]
-    same = scene[1:] == scene[:-1]
-    idx = np.nonzero(same)[0]
-    train_idx = idx[~np.isin(scene[idx], HOLDOUT_SCENES)]
-    test_idx = idx[np.isin(scene[idx], HOLDOUT_SCENES)]
-    return frames, train_idx, test_idx
+from depth3d.nextframe import UNet, fm_loss, load_pairs, regression_loss, to_tensor
 
 
 def main() -> None:
@@ -43,6 +32,7 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="")
     ap.add_argument("--log-every", type=int, default=100)
+    ap.add_argument("--max-minutes", type=float, default=40.0, help="wall-clock cap; steps actually done are recorded")
     args = ap.parse_args()
 
     world = int(os.environ.get("WORLD_SIZE", "1"))
@@ -70,7 +60,11 @@ def main() -> None:
     shard = train_idx[rank::world]
     curve = []
     t0 = time.time()
+    steps_done = 0
     for step in range(args.steps):
+        if time.time() - t0 > args.max_minutes * 60:
+            break
+        steps_done = step + 1
         b = rng.choice(shard, args.batch // world)
         cond = frames_t[b]
         x1 = frames_t[b + 1]
@@ -99,19 +93,21 @@ def main() -> None:
             "gpu": "NVIDIA L4",
             "world_size": world,
             "n_params": n_params,
-            "steps": args.steps,
+            "steps": steps_done,
+            "steps_requested": args.steps,
+            "max_minutes": args.max_minutes,
             "batch": args.batch,
             "lr": args.lr,
             "seed": args.seed,
             "n_train_pairs": int(len(train_idx)),
             "train_time_s": train_time,
-            "steps_per_s": args.steps / train_time,
+            "steps_per_s": steps_done / train_time,
             "curve_columns": ["step", "loss", "elapsed_s"],
             "curve": curve,
         }
         Path("results").mkdir(exist_ok=True)
         Path(f"results/nextframe_train_{args.mode}.json").write_text(json.dumps(info, indent=1))
-        print(f"trained {args.steps} steps in {train_time:.0f}s, {n_params / 1e6:.1f}M params (NVIDIA L4)")
+        print(f"trained {steps_done} steps in {train_time:.0f}s, {n_params / 1e6:.1f}M params (NVIDIA L4)")
         print("DONE")
     if distributed:
         torch.distributed.destroy_process_group()
