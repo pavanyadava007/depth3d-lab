@@ -147,6 +147,26 @@ def eval_sequence(vggt, mono, nusc, frames: list, ref: int, gt_cache: Path, view
     return res
 
 
+MIN_BASELINE_M = 0.1
+
+
+def pose_summary(pe: list[dict]) -> dict:
+    """Rotation over all pairs; translation direction only where the GT baseline is defined (> MIN_BASELINE_M)."""
+    moving = [e for e in pe if e["gt_baseline_m"] > MIN_BASELINE_M]
+    td = [e["trans_dir_err_deg"] for e in moving if np.isfinite(e["trans_dir_err_deg"])]
+    return {
+        "rot_err_deg_mean": float(np.mean([e["rot_err_deg"] for e in pe])),
+        "rot_err_deg_median": float(np.median([e["rot_err_deg"] for e in pe])),
+        "trans_dir_err_deg_mean": float(np.mean(td)) if td else float("nan"),
+        "trans_dir_err_deg_median": float(np.median(td)) if td else float("nan"),
+        "gt_baseline_m_mean": float(np.mean([e["gt_baseline_m"] for e in pe])),
+        "n_pairs": len(pe),
+        "n_pairs_with_baseline": len(moving),
+        "n_pairs_excluded_zero_baseline": len(pe) - len(moving),
+        "min_baseline_m": MIN_BASELINE_M,
+    }
+
+
 def summarize(rows: list[dict], key: str, metric: str = "abs_rel") -> dict:
     vals = np.array([r[key][metric] for r in rows if r.get(key)], dtype=np.float64)
     return bootstrap_mean_ci(vals)
@@ -157,7 +177,18 @@ def main() -> None:
     ap.add_argument("--per-scene", type=int, default=4, help="sequences per scene per setting")
     ap.add_argument("--gt-cache", default="data/gt")
     ap.add_argument("--out", default="results/multiview_vggt.json")
+    ap.add_argument("--summarize-only", action="store_true", help="recompute the summary from the saved sequences")
     args = ap.parse_args()
+    if args.summarize_only:
+        prev = json.loads(Path(args.out).read_text())
+        times = prev.get("timings_ms") or {
+            k: [v["timing_ms_per_sequence"]["mean"]] * v["n_sequences"] for k, v in prev["summary"].items()
+        }
+        prev["timings_ms"] = times
+        prev["summary"] = build_summary(prev["sequences"], times)
+        Path(args.out).write_text(json.dumps(prev, indent=1))
+        print("summary rebuilt")
+        return
     nusc = N.load_nusc()
     t_load = time.time()
     vggt = VGGTModel()
@@ -190,6 +221,24 @@ def main() -> None:
             times["temporal5"].append((time.perf_counter() - t0) * 1000)
             r["t_start"] = int(start)
             results["temporal5"].append(r)
+    summary = build_summary(results, times)
+    out = {
+        "model": "VGGT-1B (facebook/VGGT-1B), bf16 autocast, input 518x294",
+        "mono_reference": "Depth Pro on the same reference image and LiDAR pixels",
+        "gpu": "NVIDIA L4",
+        "model_load_s": load_time,
+        "summary": summary,
+        "timings_ms": times,
+        "sequences": results,
+    }
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out).write_text(json.dumps(out, indent=1))
+    for k, v in summary.items():
+        print(k, {m: round(c["mean"], 4) for m, c in v["abs_rel"].items() if c["n"]}, v["pose"])
+    print("DONE")
+
+
+def build_summary(results: dict, times: dict) -> dict:
     summary = {}
     cmp_keys = ["vggt_seq_scaled", "vggt_img_scaled", "depth_pro_img_scaled"]
     for setting, rows in results.items():
@@ -214,33 +263,14 @@ def main() -> None:
                 np.array([r["vggt_img_scaled"]["abs_rel"] for r in rows]),
                 np.array([r["depth_pro_img_scaled"]["abs_rel"] for r in rows]),
             ),
-            "pose": {
-                "rot_err_deg_mean": float(np.mean([e["rot_err_deg"] for e in pe])),
-                "rot_err_deg_median": float(np.median([e["rot_err_deg"] for e in pe])),
-                "trans_dir_err_deg_mean": float(np.nanmean([e["trans_dir_err_deg"] for e in pe])),
-                "trans_dir_err_deg_median": float(np.nanmedian([e["trans_dir_err_deg"] for e in pe])),
-                "gt_baseline_m_mean": float(np.mean([e["gt_baseline_m"] for e in pe])),
-                "n_pairs": len(pe),
-            },
+            "pose": pose_summary(pe),
             "scale_seq_median": float(np.median([r["scale_seq"] for r in rows])),
             "timing_ms_per_sequence": {
                 "mean": float(np.mean(times[setting])),
                 "note": "VGGT forward + Depth Pro on the reference view + metric computation, NVIDIA L4",
             },
         }
-    out = {
-        "model": "VGGT-1B (facebook/VGGT-1B), bf16 autocast, input 518x294",
-        "mono_reference": "Depth Pro on the same reference image and LiDAR pixels",
-        "gpu": "NVIDIA L4",
-        "model_load_s": load_time,
-        "summary": summary,
-        "sequences": results,
-    }
-    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.out).write_text(json.dumps(out, indent=1))
-    for k, v in summary.items():
-        print(k, {m: round(c["mean"], 4) for m, c in v["abs_rel"].items() if c["n"]}, v["pose"])
-    print("DONE")
+    return summary
 
 
 if __name__ == "__main__":

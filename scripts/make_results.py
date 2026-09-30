@@ -214,7 +214,9 @@ def track_b() -> tuple[str, list[list[str]]]:
         lines.append(
             f"Relative camera pose vs nuScenes GT over {po['n_pairs']} view pairs: rotation error mean {f(po['rot_err_deg_mean'], 2)} deg "
             f"(median {f(po['rot_err_deg_median'], 2)}), translation direction error mean {f(po['trans_dir_err_deg_mean'], 1)} deg "
-            f"(median {f(po['trans_dir_err_deg_median'], 1)}); mean GT baseline {f(po['gt_baseline_m_mean'], 2)} m. "
+            f"(median {f(po['trans_dir_err_deg_median'], 1)}, over the {po.get('n_pairs_with_baseline', po['n_pairs'])} pairs whose GT "
+            f"baseline exceeds {f(po.get('min_baseline_m', 0.0), 1)} m; {po.get('n_pairs_excluded_zero_baseline', 0)} pairs with a "
+            f"stationary ego vehicle have no defined direction and are excluded); mean GT baseline {f(po['gt_baseline_m_mean'], 2)} m. "
             f"Median sequence scale factor (LiDAR / VGGT units): {f(s['scale_seq_median'], 2)}."
         )
         lines.append("")

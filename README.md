@@ -36,14 +36,23 @@ quoting any number.
 |---|---|---|---|---|---|
 | depth_pro | 0.257 | 0.178 | 0.525 | 0.760 | 599 |
 | depth_pro_gtfocal | 0.277 | 0.178 | 0.460 | 0.760 | 599 |
+| dav2_metric_outdoor_large | 0.582 | 0.194 | 0.199 | 0.715 | 365 |
 
 **Track C - 3DGS ablation on the selected scene (held-out views)**
 
-not measured
+| variant | PSNR | SSIM | LPIPS | gaussians | train min (NVIDIA L4) |
+|---|---|---|---|---|---|
+| random | 13.40 | 0.521 | 0.758 | 206,811 | 1.5 |
+| lidar | 16.29 | 0.587 | 0.580 | 576,114 | 2.9 |
+| lidar_depth0.05 | 17.54 | 0.599 | 0.525 | 674,323 | 3.3 |
+| lidar_depth0.2 | 18.51 | 0.608 | 0.497 | 736,227 | 3.5 |
 
 **Track B - VGGT vs Depth Pro on identical reference pixels (AbsRel, 95% CI)**
 
-not measured
+| setting | VGGT seq-scaled | Depth Pro img-scaled | rot err median deg | trans dir err median deg |
+|---|---|---|---|---|
+| rig6 | 0.135 [0.120, 0.149] | 0.135 [0.116, 0.161] | 4.65 | 35.9 |
+| temporal5 | 0.118 [0.097, 0.146] | 0.128 [0.112, 0.151] | 0.14 | 2.0 |
 
 **Track E - next-frame synthesis on 2 held-out scenes**
 
@@ -73,6 +82,46 @@ Runtimes, what did not run and every open caveat: [STATUS.md](STATUS.md).
 - Track E reports PSNR and LPIPS of one sample per test pair against the real next frame; PSNR favours blurry
   averages, LPIPS favours sharp plausible frames, which is why both are shown next to the two baselines.
 - Track D metrics are computed only on pixels the re-rendered Gaussians cover; coverage is reported.
+
+## Findings (qualitative; every number is in the generated tables)
+
+**Track A.** For both models a large part of the raw metric error on nuScenes is a per-image scale error:
+median scaling removes roughly a third of Depth Pro's AbsRel and a comparable share of DA-V2's; what remains
+(the shape error) is of the same order for the two models, with Depth Pro ahead. Depth Pro's own focal-length
+estimate is higher than the true nuScenes focal for every camera, most for the short-focal back camera (see the
+"scale factor and focal estimate per camera" table). Feeding the true focal makes the raw error *worse*, not
+better: its canonical depth on this data is too near, and the over-estimated focal partly cancels that, so with the
+true focal the systematic under-estimation shows up in all six cameras with a similar scale factor. This was
+cross-checked against the library's own `infer(f_px=...)` on CPU (results/depth_pro_focal_check.json; the two
+code paths agree to the last bit). The front camera is the easiest for both models; the side cameras are the
+hardest before and after scaling. A plausible reason is content, not optics: side views are dominated by close,
+oblique facades, parked cars and vegetation with many LiDAR returns under 20 m, where a relative error costs more
+in AbsRel. This is a hypothesis; the data here cannot separate it from a focal or FOV mismatch to the training
+distribution. Errors grow with distance for both models (depth-bin table), and the tiny fraction of LiDAR pixels
+where a model predicted sky-like depth beyond 80 m is reported and clipped before scoring (KITTI protocol),
+because without clipping a handful of such pixels dominated the squared metrics.
+
+**Track C.** On the most static nuScenes-mini scene the ordering is monotone at both step budgets: random
+(SfM-free) init is worst, aggregated LiDAR init is clearly better on all three metrics, and adding monocular-depth
+supervision from the scale-aligned Depth Pro maps improves held-out PSNR, SSIM and LPIPS further, with the larger
+weight (0.2) ahead of 0.05 (7k set). Absolute quality is low for a 3DGS result and should be read as such: the
+held-out views sit 0.5 s (several metres) away from the nearest training views, every camera has its own exposure,
+moving people and cars are modelled as static and ghost, and the training views cover the scene only once. The
+train-view PSNR is far below what dense captures reach, so the model is under-constrained rather than over-fitted.
+One scene, one seed.
+
+**Track B.** VGGT is not metric (its raw depth is off by a large constant factor, reported as the sequence
+scale), so all comparisons are after alignment. On identical LiDAR pixels of the same reference image, VGGT with
+one scale per sequence and Depth Pro with its per-image median scale end up very close: the paired bootstrap CI
+of the AbsRel difference includes zero in both settings (40 sequences each), with VGGT ahead on average and in
+most sequences for the 5-frame forward-motion window, and a tie for the 6-camera rig at one timestamp. So on
+this data multi-view context does not beat a strong monocular prior by a margin this sample can resolve. Scaling
+VGGT by a sim(3) fitted to its predicted camera centres is much worse than the LiDAR-median scale, because the
+camera baselines are short (about 1 m inside the rig, a few metres between keyframes) and the fitted scale is
+noisy. VGGT's relative rotations are accurate for the temporal window (median well under one degree) and its
+translation directions are good once stationary frames (zero baseline, direction undefined) are excluded; for the
+wide-baseline, low-overlap 6-camera rig the relative rotations are off by several degrees and the translation
+directions are poor, which matches the low overlap between nuScenes cameras.
 
 ## Reproduce
 
