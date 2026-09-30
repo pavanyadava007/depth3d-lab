@@ -1,0 +1,18 @@
+{
+  "n_frames": 2342,
+  "n_keyframes": 404,
+  "size_wh": [
+    128,
+    64
+  ],
+  "n_pairs": 2332,
+  "n_train_pairs": 1865,
+  "n_test_pairs": 467,
+  "holdout_scenes": [
+    "scene-0655",
+    "scene-1094"
+  ],
+  "pair_dt_s_median": 0.1,
+  "pair_dt_s_p90": 0.1,
+  "prep_time_s": 21.652702569961548
+}
