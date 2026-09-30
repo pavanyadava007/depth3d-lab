@@ -64,7 +64,11 @@ quoting any number.
 
 **Track D - SHARP single-image Gaussians rendered at the next pose**
 
-not measured
+| target | PSNR | LPIPS | motion [m] |
+|---|---|---|---|
+| identity | 41.62 [40.69, 42.52] | 0.017 [0.014, 0.020] | 0.00 |
+| next_sweep | 26.80 [24.70, 28.87] | 0.096 [0.071, 0.122] | 0.48 |
+| next_keyframe | 20.42 [18.71, 22.09] | 0.231 [0.179, 0.290] | 2.82 |
 
 <!-- RESULTS:END -->
 
@@ -126,6 +130,21 @@ noisy. VGGT's relative rotations are accurate for the temporal window (median we
 translation directions are good once stationary frames (zero baseline, direction undefined) are excluded; for the
 wide-baseline, low-overlap 6-camera rig the relative rotations are off by several degrees and the translation
 directions are poor, which matches the low overlap between nuScenes cameras.
+
+**Track E.** With a fixed 40-minute budget on a shared GPU, one Euler sample from the conditional flow-matching UNet is
+perceptually closer to the real next frame than the deterministic regression UNet (lower LPIPS, paired CI excludes
+zero) but has lower PSNR, the usual sharp-sample versus blurry-mean trade-off. Neither model beats copying the current
+frame on either metric: consecutive nuScenes frames are 0.1 s apart, so the copy baseline is strong, and a 12M-parameter
+model trained for a few thousand steps does not learn enough motion to beat it. The FID of unconditional samples is
+poor and is reported only to show the model was not simply memorising the condition. Two held-out scenes, one seed.
+
+**Track D.** SHARP's single-image Gaussians re-render the input view almost perfectly (identity pose), which confirms
+the pipeline; quality then falls steeply with the size of the true camera motion, from the next 12 Hz sweep (about half a metre
+of forward motion) to the next keyframe (a few metres), with full pixel coverage in both cases because the ego vehicle
+moves into the scene the Gaussians already cover (see the Track D table). Where the error sits was not measured here;
+plausible sources are content the input photo could not see (behind cars and poles, the road under the ego vehicle) and
+moving objects, which a single-image model freezes at their time-t position. Ten images, one per scene; a sample too
+small for anything beyond this ordering.
 
 ## Reproduce
 

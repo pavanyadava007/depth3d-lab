@@ -1,7 +1,7 @@
 """Build the static site (site/index.html + site/assets) for a Hugging Face static Space.
 
 Everything on the page is derived from results/*.json, docs/RESULTS.md and the small renders produced by
-the scripts. External libraries: plotly.js (cdnjs), three.js (unpkg) and gsplat.js (jsdelivr). Nothing is
+the scripts. External libraries: plotly.js (jsdelivr), three.js (unpkg) and an own wasm-free WebGL2 splat viewer (assets/splatview.js, adapted from antimatter15/splat, MIT). Nothing is
 uploaded by this script.
 """
 
@@ -266,6 +266,7 @@ def export_splat(name: str) -> dict | None:
 
 def copy_media() -> dict:
     ASSETS.mkdir(parents=True, exist_ok=True)
+    shutil.copy(Path("scripts/web/splatview.js"), ASSETS / "splatview.js")
     media = {"gs_previews": [], "videos": [], "grid": None, "sharp": []}
     for p in sorted(Path("docs/img").glob("gs_*.jpg")):
         shutil.copy(p, ASSETS / p.name)
@@ -338,7 +339,7 @@ def build_page(results_html: str, chart_specs: list[dict], pc: dict | None, spla
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>depth3d-lab</title>
 <style>{CSS}</style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 </head><body>
 <header><h1>depth3d-lab: depth, 3D reconstruction and view synthesis on nuScenes-mini</h1>
 <p>Zero-shot evaluation of public models plus small trained models, all measured on one NVIDIA L4. Every number on this page is generated from results/*.json. Author: Pavan Yadav Annappa. MIT licence for the code; nuScenes-mini is CC BY-NC-SA 4.0 and is not redistributed here (only tokens, metrics and small renders).</p></header>
@@ -398,17 +399,9 @@ if (el) {{
 }}
 </script>
 <script type="module">
-import * as SPLAT from 'https://cdn.jsdelivr.net/npm/gsplat@1.2.6/dist/index.js';
+import {{ mountSplatViewer }} from './assets/splatview.js';
 const el = document.getElementById('splat_viewer');
-if (el) {{
-  const scene = new SPLAT.Scene();
-  const camera = new SPLAT.Camera();
-  const renderer = new SPLAT.WebGLRenderer(); renderer.setSize(el.clientWidth, el.clientHeight); el.appendChild(renderer.canvas);
-  const controls = new SPLAT.OrbitControls(camera, renderer.canvas);
-  camera.position = new SPLAT.Vector3(0, -3, -25);
-  await SPLAT.Loader.LoadAsync('assets/scene.splat', scene, () => {{}});
-  (function frame() {{ controls.update(); renderer.render(scene, camera); requestAnimationFrame(frame); }})();
-}}
+if (el) {{ mountSplatViewer(el, 'assets/scene.splat', {{ target: [0, 0, 20], distance: 20, pitch: 0.08 }}).catch(e => {{ el.textContent = 'viewer error: ' + e; }}); }}
 </script>
 </body></html>
 """
