@@ -1,0 +1,113 @@
+{
+  "velocity_threshold_mps": 0.5,
+  "moving_attributes": [
+    "cycle.with_rider",
+    "pedestrian.moving",
+    "vehicle.moving"
+  ],
+  "scenes": {
+    "scene-0061": {
+      "n_keyframes": 39,
+      "n_annotations": 4699,
+      "n_moving_annotations_vel": 1017,
+      "n_moving_instances_vel": 58,
+      "frac_moving_vel": 0.2164290274526495,
+      "n_moving_annotations_attr": 1114,
+      "description": "Parked truck, construction, intersection, turn left, following a van"
+    },
+    "scene-0103": {
+      "n_keyframes": 40,
+      "n_annotations": 2090,
+      "n_moving_annotations_vel": 968,
+      "n_moving_instances_vel": 63,
+      "frac_moving_vel": 0.4631578947368421,
+      "n_moving_annotations_attr": 1058,
+      "description": "Many peds right, wait for turning car, long bike rack left, cyclist"
+    },
+    "scene-0553": {
+      "n_keyframes": 41,
+      "n_annotations": 1991,
+      "n_moving_annotations_vel": 796,
+      "n_moving_instances_vel": 26,
+      "frac_moving_vel": 0.3997990959316926,
+      "n_moving_annotations_attr": 778,
+      "description": "Wait at intersection, bicycle, large truck, peds crossing crosswalk, ped with stroller"
+    },
+    "scene-0655": {
+      "n_keyframes": 41,
+      "n_annotations": 2373,
+      "n_moving_annotations_vel": 213,
+      "n_moving_instances_vel": 17,
+      "frac_moving_vel": 0.0897597977243995,
+      "n_moving_annotations_attr": 216,
+      "description": "Parking lot, parked cars, jaywalker, bendy bus, gardening vehicles"
+    },
+    "scene-0757": {
+      "n_keyframes": 41,
+      "n_annotations": 604,
+      "n_moving_annotations_vel": 294,
+      "n_moving_instances_vel": 19,
+      "frac_moving_vel": 0.4867549668874172,
+      "n_moving_annotations_attr": 297,
+      "description": "Arrive at busy intersection, bus, wait at intersection, bicycle, peds"
+    },
+    "scene-0796": {
+      "n_keyframes": 40,
+      "n_annotations": 716,
+      "n_moving_annotations_vel": 588,
+      "n_moving_instances_vel": 37,
+      "frac_moving_vel": 0.8212290502793296,
+      "n_moving_annotations_attr": 599,
+      "description": "Scooter, peds on sidewalk, bus, cars, truck, fake construction worker, bicycle, cross intersection, car overtaking us"
+    },
+    "scene-0916": {
+      "n_keyframes": 41,
+      "n_annotations": 2424,
+      "n_moving_annotations_vel": 186,
+      "n_moving_instances_vel": 22,
+      "frac_moving_vel": 0.07673267326732673,
+      "n_moving_annotations_attr": 265,
+      "description": "Parking lot, bicycle rack, parked bicycles, bus, many peds, parked scooters, parked motorcycle"
+    },
+    "scene-1077": {
+      "n_keyframes": 41,
+      "n_annotations": 909,
+      "n_moving_annotations_vel": 701,
+      "n_moving_instances_vel": 57,
+      "frac_moving_vel": 0.7711771177117712,
+      "n_moving_annotations_attr": 762,
+      "description": "Night, big street, bus stop, high speed, construction vehicle"
+    },
+    "scene-1094": {
+      "n_keyframes": 40,
+      "n_annotations": 1776,
+      "n_moving_annotations_vel": 1191,
+      "n_moving_instances_vel": 64,
+      "frac_moving_vel": 0.6706081081081081,
+      "n_moving_annotations_attr": 1195,
+      "description": "Night, after rain, many peds, PMD, ped with bag, jaywalker, truck, scooter"
+    },
+    "scene-1100": {
+      "n_keyframes": 40,
+      "n_annotations": 956,
+      "n_moving_annotations_vel": 492,
+      "n_moving_instances_vel": 22,
+      "frac_moving_vel": 0.5146443514644351,
+      "n_moving_annotations_attr": 611,
+      "description": "Night, peds in sidewalk, peds cross crosswalk, scooter, PMD, difficult lighting"
+    }
+  },
+  "ranking_fewest_moving_first": [
+    "scene-0916",
+    "scene-0655",
+    "scene-0757",
+    "scene-1100",
+    "scene-0796",
+    "scene-1077",
+    "scene-0553",
+    "scene-0103",
+    "scene-0061",
+    "scene-1094"
+  ],
+  "selected_scene": "scene-0916"
+}
