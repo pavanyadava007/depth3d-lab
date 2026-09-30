@@ -32,7 +32,10 @@ quoting any number.
 
 **Track A - monocular metric depth (2,424 nuScenes-mini images, LiDAR GT 1-80 m)**
 
-not measured
+| variant | AbsRel raw | AbsRel scaled | d1 raw | d1 scaled | ms/img (NVIDIA L4) |
+|---|---|---|---|---|---|
+| depth_pro | 0.257 | 0.178 | 0.525 | 0.760 | 599 |
+| depth_pro_gtfocal | 0.277 | 0.178 | 0.460 | 0.760 | 599 |
 
 **Track C - 3DGS ablation on the selected scene (held-out views)**
 

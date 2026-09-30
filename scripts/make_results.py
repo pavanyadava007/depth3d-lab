@@ -244,7 +244,7 @@ def track_c() -> tuple[str, list[list[str]]]:
         lines.append("Not measured: no results/gs_*.json found.")
         return "\n".join(lines), headline
     rs = [json.loads(p.read_text()) for p in files]
-    order = ["random", "lidar", "lidar_depth0.05", "lidar_depth0.2"]
+    order = ["random", "lidar", "lidar_depth0.05", "lidar_depth0.2", "random_15k", "lidar_15k", "lidar_depth0.05_15k", "lidar_depth0.2_15k"]
     rs.sort(key=lambda r: order.index(r["name"]) if r["name"] in order else 99)
     r0 = rs[0]
     lines.append(

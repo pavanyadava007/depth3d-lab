@@ -15,7 +15,78 @@ LiDAR ground truth: 2,424 images (404 keyframes x 6 cameras), points with 1 m < 
 | CAM_BACK_LEFT | 4000 | 8.4 | 0.87 | 0.12 | 0.01 |
 | CAM_BACK_RIGHT | 3614 | 10.8 | 0.70 | 0.23 | 0.07 |
 
-Not measured: no results/mono_depth_*.json found.
+### Overall (all LiDAR points, all cameras)
+
+| variant | AbsRel | SqRel | RMSE [m] | RMSE_log | d<1.25 | d<1.25^2 | d<1.25^3 | images | ms/img (NVIDIA L4) |
+|---|---|---|---|---|---|---|---|---|---|
+| depth_pro raw | 0.257 | 2.123 | 7.760 | 0.488 | 0.525 | 0.800 | 0.894 | 2,424 | 599 |
+| depth_pro median-scaled | 0.178 | 1.629 | 6.725 | 0.314 | 0.760 | 0.902 | 0.951 | 2,424 |  |
+| depth_pro_gtfocal raw | 0.277 | 2.448 | 8.579 | 0.553 | 0.460 | 0.727 | 0.858 | 2,424 | 599 |
+| depth_pro_gtfocal median-scaled | 0.178 | 1.629 | 6.725 | 0.314 | 0.760 | 0.902 | 0.951 | 2,424 |  |
+
+'raw' is the metric output as predicted; 'median-scaled' multiplies each image by median(GT)/median(pred) so that the remaining error is shape error only. 'depth_pro_gtfocal' feeds the true nuScenes focal length instead of the model's own focal estimate. Timing is the median model time per 1600x900 image.
+
+### Scale factor and focal estimate per camera
+
+| variant | camera | median scale GT/pred | p10 / p90 | true f [px] | pred f median [px] | pred/true f |
+|---|---|---|---|---|---|---|
+| depth_pro | CAM_FRONT | 1.122 | 0.881 / 1.467 | 1266 | 1324 | 1.046 |
+| depth_pro | CAM_FRONT_LEFT | 1.298 | 1.018 / 1.967 | 1273 | 1322 | 1.039 |
+| depth_pro | CAM_FRONT_RIGHT | 1.212 | 0.988 / 1.697 | 1261 | 1377 | 1.092 |
+| depth_pro | CAM_BACK | 0.943 | 0.767 / 1.266 | 809 | 1033 | 1.276 |
+| depth_pro | CAM_BACK_LEFT | 1.195 | 0.930 / 2.508 | 1257 | 1366 | 1.087 |
+| depth_pro | CAM_BACK_RIGHT | 1.249 | 1.024 / 1.641 | 1260 | 1415 | 1.123 |
+| depth_pro_gtfocal | CAM_FRONT | 1.165 | 0.951 / 1.529 | 1266 | 1324 | 1.046 |
+| depth_pro_gtfocal | CAM_FRONT_LEFT | 1.342 | 1.072 / 2.176 | 1273 | 1322 | 1.039 |
+| depth_pro_gtfocal | CAM_FRONT_RIGHT | 1.287 | 1.073 / 2.012 | 1261 | 1377 | 1.092 |
+| depth_pro_gtfocal | CAM_BACK | 1.169 | 1.008 / 1.570 | 809 | 1033 | 1.276 |
+| depth_pro_gtfocal | CAM_BACK_LEFT | 1.267 | 1.063 / 3.170 | 1257 | 1366 | 1.087 |
+| depth_pro_gtfocal | CAM_BACK_RIGHT | 1.390 | 1.076 / 2.069 | 1260 | 1415 | 1.123 |
+
+A scale factor of 1.0 means the metric output is already on the LiDAR scale for that camera.
+
+### Per camera group (front / side / back) - AbsRel and d<1.25
+
+| variant | group | AbsRel raw | AbsRel scaled | d1 raw | d1 scaled | points |
+|---|---|---|---|---|---|---|
+| depth_pro | front | 0.191 | 0.124 | 0.633 | 0.845 | 1,219,883 |
+| depth_pro | side | 0.270 | 0.190 | 0.495 | 0.739 | 5,715,488 |
+| depth_pro | back | 0.259 | 0.177 | 0.549 | 0.771 | 1,826,681 |
+| depth_pro_gtfocal | front | 0.202 | 0.124 | 0.595 | 0.845 | 1,219,883 |
+| depth_pro_gtfocal | side | 0.306 | 0.190 | 0.411 | 0.739 | 5,715,488 |
+| depth_pro_gtfocal | back | 0.236 | 0.177 | 0.525 | 0.771 | 1,826,681 |
+
+### Per camera - AbsRel raw / scaled
+
+| variant | CAM_FRONT | CAM_FRONT_LEFT | CAM_FRONT_RIGHT | CAM_BACK | CAM_BACK_LEFT | CAM_BACK_RIGHT |
+|---|---|---|---|---|---|---|
+| depth_pro | 0.191 / 0.124 | 0.286 / 0.182 | 0.237 / 0.204 | 0.259 / 0.177 | 0.301 / 0.174 | 0.251 / 0.202 |
+| depth_pro_gtfocal | 0.202 / 0.124 | 0.310 / 0.182 | 0.275 / 0.204 | 0.236 / 0.177 | 0.326 / 0.174 | 0.309 / 0.202 |
+
+### Per depth bin - AbsRel and RMSE
+
+| variant | bin | AbsRel raw | AbsRel scaled | RMSE raw [m] | RMSE scaled [m] | points |
+|---|---|---|---|---|---|---|
+| depth_pro | 1-20m | 0.242 | 0.158 | 3.52 | 2.99 | 6,653,105 |
+| depth_pro | 20-40m | 0.280 | 0.216 | 10.22 | 8.81 | 1,599,744 |
+| depth_pro | 40-80m | 0.373 | 0.315 | 23.38 | 20.43 | 509,203 |
+| depth_pro_gtfocal | 1-20m | 0.250 | 0.158 | 3.58 | 2.99 | 6,653,105 |
+| depth_pro_gtfocal | 20-40m | 0.338 | 0.216 | 11.55 | 8.81 | 1,599,744 |
+| depth_pro_gtfocal | 40-80m | 0.438 | 0.315 | 26.08 | 20.43 | 509,203 |
+
+### Reading the scale error (generated from the tables above)
+
+depth_pro: per-image median scaling lowers AbsRel from 0.257 to 0.178, i.e. 31% of the raw error is a per-image scale error and the rest is shape error. Worst camera group raw: side (AbsRel 0.270), best: front (0.191). Median scale factor CAM_FRONT 1.12 vs CAM_BACK 0.94. Focal estimate / true focal: CAM_FRONT 1.05, CAM_BACK 1.28. Fraction of LiDAR pixels where the raw prediction exceeded 80 m (clipped before scoring): 0.08%.
+
+depth_pro_gtfocal: per-image median scaling lowers AbsRel from 0.277 to 0.178, i.e. 36% of the raw error is a per-image scale error and the rest is shape error. Worst camera group raw: side (AbsRel 0.306), best: front (0.202). Median scale factor CAM_FRONT 1.16 vs CAM_BACK 1.17. Focal estimate / true focal: CAM_FRONT 1.05, CAM_BACK 1.28. Fraction of LiDAR pixels where the raw prediction exceeded 80 m (clipped before scoring): 0.06%.
+
+### Per-image AbsRel, mean with 95% bootstrap CI over images
+
+| variant | raw | median-scaled |
+|---|---|---|
+| depth_pro | 0.255 [0.250, 0.260] | 0.177 [0.173, 0.182] |
+| depth_pro_gtfocal | 0.276 [0.271, 0.282] | 0.177 [0.173, 0.182] |
+
 ## Track C - 3D Gaussian Splatting on one driving scene (gsplat, own training loop)
 
 Scene choice: moving annotations (box velocity > 0.5 m/s) per scene; selected scene-0916.

@@ -120,7 +120,7 @@ def charts() -> list[dict]:
             "layout": {"barmode": "group", "yaxis": {"title": "median(GT)/median(pred)"}, "shapes": [{"type": "line", "x0": -0.5, "x1": len(cams) - 0.5, "y0": 1, "y1": 1, "line": {"dash": "dot", "color": "#888"}}]},
         })
     gss = [json.loads(p.read_text()) for p in sorted(RES.glob("gs_*.json"))]
-    gorder = ["random", "lidar", "lidar_depth0.05", "lidar_depth0.2"]
+    gorder = ["random", "lidar", "lidar_depth0.05", "lidar_depth0.2", "random_15k", "lidar_15k", "lidar_depth0.05_15k", "lidar_depth0.2_15k"]
     gss.sort(key=lambda r: gorder.index(r["name"]) if r["name"] in gorder else 99)
     if gss:
         names = [g["name"] for g in gss]
