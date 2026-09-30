@@ -7,6 +7,10 @@ export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt
 export TORCH_CUDA_ARCH_LIST="8.9"
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 
+log "== Depth Pro eval (clipped scoring)"
+$PY scripts/eval_mono_depth.py --model depth_pro --save-pred-scene scene-0916 > logs/eval_depth_pro.log 2>&1
+tail -3 logs/eval_depth_pro.log
+
 log "== DA-V2 metric outdoor eval"
 $PY scripts/eval_mono_depth.py --model dav2_metric_outdoor_large --save-pred-scene scene-0916 > logs/eval_dav2.log 2>&1
 tail -3 logs/eval_dav2.log

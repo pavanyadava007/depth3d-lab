@@ -72,3 +72,15 @@ def test_pose_errors_and_umeyama():
     Tb[:3, 3] = [0, 0, 5]
     rel = relative_pose(Ta, Tb)
     assert np.allclose(rel[:3, 3], [0, 0, 5])
+
+
+def test_predictions_are_clipped_to_range():
+    gt = np.array([10.0, 20.0, 30.0])
+    pred = np.array([10.0, 20.0, 1e4])  # sky-like outlier
+    m = depth_metrics(pred, gt)
+    assert m["rmse"] == pytest.approx(np.sqrt((80.0 - 30.0) ** 2 / 3))
+    acc = MetricAccumulator()
+    acc.add(pred, gt)
+    r = acc.result()
+    assert r["frac_pred_above_max"] == pytest.approx(1 / 3)
+    assert r["rmse"] == pytest.approx(m["rmse"])

@@ -7,15 +7,15 @@ import numpy as np
 DEPTH_BINS = [(1.0, 20.0), (20.0, 40.0), (40.0, 80.0)]
 
 
-def depth_metrics(pred: np.ndarray, gt: np.ndarray) -> dict[str, float]:
-    """Standard KITTI-style metrics on paired 1-D arrays of positive depths."""
+def depth_metrics(pred: np.ndarray, gt: np.ndarray, clip_min: float = 1.0, clip_max: float = 80.0) -> dict[str, float]:
+    """Standard KITTI-style metrics on paired 1-D arrays of positive depths (predictions clipped to the range)."""
     pred = np.asarray(pred, dtype=np.float64)
     gt = np.asarray(gt, dtype=np.float64)
     if pred.shape != gt.shape or pred.ndim != 1:
         raise ValueError("pred and gt must be 1-D arrays of equal length")
     if gt.size == 0:
         return {k: float("nan") for k in ["abs_rel", "sq_rel", "rmse", "rmse_log", "d1", "d2", "d3"]}
-    pred = np.clip(pred, 1e-3, None)
+    pred = np.clip(pred, clip_min, clip_max)
     thresh = np.maximum(pred / gt, gt / pred)
     return {
         "abs_rel": float(np.mean(np.abs(pred - gt) / gt)),
@@ -42,19 +42,28 @@ def bin_masks(gt: np.ndarray, bins=DEPTH_BINS) -> dict[str, np.ndarray]:
 
 
 class MetricAccumulator:
-    """Accumulates sums so that metrics over all points (not mean-of-image-means) can be computed."""
+    """Accumulates sums so that metrics over all points (not mean-of-image-means) can be computed.
+
+    Predictions are clipped to [clip_min, clip_max] before scoring (KITTI protocol); the number of points whose
+    unclipped prediction was above clip_max is counted in ``n_far_outliers``.
+    """
 
     KEYS = ["abs_rel", "sq_rel", "sq_err", "sq_log_err", "d1", "d2", "d3"]
 
-    def __init__(self) -> None:
+    def __init__(self, clip_min: float = 1.0, clip_max: float = 80.0) -> None:
         self.sums = dict.fromkeys(self.KEYS, 0.0)
         self.n = 0
+        self.n_far_outliers = 0
+        self.clip_min = clip_min
+        self.clip_max = clip_max
 
     def add(self, pred: np.ndarray, gt: np.ndarray) -> None:
-        pred = np.clip(np.asarray(pred, dtype=np.float64), 1e-3, None)
+        pred = np.asarray(pred, dtype=np.float64)
         gt = np.asarray(gt, dtype=np.float64)
         if gt.size == 0:
             return
+        self.n_far_outliers += int(np.sum(pred > self.clip_max))
+        pred = np.clip(pred, self.clip_min, self.clip_max)
         thresh = np.maximum(pred / gt, gt / pred)
         self.sums["abs_rel"] += float(np.sum(np.abs(pred - gt) / gt))
         self.sums["sq_rel"] += float(np.sum((pred - gt) ** 2 / gt))
@@ -71,6 +80,7 @@ class MetricAccumulator:
         n = self.n
         return {
             "n_points": n,
+            "frac_pred_above_max": self.n_far_outliers / n,
             "abs_rel": self.sums["abs_rel"] / n,
             "sq_rel": self.sums["sq_rel"] / n,
             "rmse": float(np.sqrt(self.sums["sq_err"] / n)),
