@@ -130,6 +130,10 @@ Scene scene-0916, 216 train / 30 held-out views (every 8th timestamp (offset 4),
 | lidar | - | 16.29 +- 2.75 | 0.587 | 0.580 | 300,000 | 576,114 | 2.9 | 3.5 | 21.24 |
 | lidar_depth0.05 | 0.05 | 17.54 +- 2.66 | 0.599 | 0.525 | 300,000 | 674,323 | 3.3 | 3.9 | 21.66 |
 | lidar_depth0.2 | 0.20 | 18.51 +- 2.77 | 0.608 | 0.497 | 300,000 | 736,227 | 3.5 | 4.2 | 21.48 |
+| random_15k | - | 12.36 +- 2.45 | 0.512 | 0.729 | 200,000 | 427,153 | 4.4 | 2.6 | 20.61 |
+| lidar_15k | - | 14.04 +- 3.42 | 0.522 | 0.605 | 300,000 | 948,796 | 8.4 | 5.0 | 22.44 |
+| lidar_depth0.05_15k | 0.05 | 16.94 +- 2.79 | 0.574 | 0.469 | 300,000 | 1,337,190 | 11.6 | 7.2 | 23.43 |
+| lidar_depth0.2_15k | 0.20 | 18.32 +- 2.63 | 0.584 | 0.417 | 300,000 | 1,516,755 | 12.8 | 8.3 | 23.32 |
 
 LiDAR init vs random init: 2.89 dB PSNR on held-out views (positive favours LiDAR init).
 lidar_depth0.05 vs lidar: 1.26 dB PSNR, -0.054 LPIPS (negative LPIPS favours depth supervision).
@@ -143,6 +147,10 @@ lidar_depth0.2 vs lidar: 2.22 dB PSNR, -0.083 LPIPS (negative LPIPS favours dept
 | lidar | 18.08 | 14.74 | 16.77 | 17.44 | 14.23 | 16.46 |
 | lidar_depth0.05 | 18.83 | 16.06 | 17.35 | 18.18 | 16.95 | 17.89 |
 | lidar_depth0.2 | 20.54 | 17.17 | 18.49 | 18.68 | 17.89 | 18.28 |
+| random_15k | 12.66 | 12.55 | 12.91 | 12.29 | 11.85 | 11.92 |
+| lidar_15k | 17.18 | 12.28 | 15.74 | 13.82 | 11.22 | 14.02 |
+| lidar_depth0.05_15k | 18.52 | 15.36 | 17.34 | 17.89 | 15.31 | 17.24 |
+| lidar_depth0.2_15k | 20.54 | 16.72 | 17.99 | 19.04 | 17.37 | 18.27 |
 
 ## Track B - feed-forward multi-view reconstruction (VGGT) vs LiDAR
 
@@ -206,4 +214,13 @@ FID of unconditional samples vs held-out frames: 390.3 (467 generated, 467 real)
 
 ## Track D - single-image 3D Gaussians (Apple SHARP) rendered at the true next pose
 
-Not measured: results/sharp_nvs.json missing (see STATUS.md for the reason).
+10 CAM_FRONT keyframes (one per scene); Gaussians predicted from frame t, rendered at the identity pose and at the true relative pose of the next frame (nuScenes ego pose + calibration). Metrics only on pixels the render covers. GPU: NVIDIA L4.
+
+| target | PSNR [95% CI] | SSIM | LPIPS (alex) | coverage | camera motion [m] |
+|---|---|---|---|---|---|
+| identity | 41.62 [40.69, 42.52] | 0.991 [0.987, 0.995] | 0.017 [0.014, 0.020] | 1.00 | 0.00 |
+| next_sweep | 26.80 [24.70, 28.87] | 0.773 [0.683, 0.858] | 0.096 [0.071, 0.122] | 1.00 | 0.48 |
+| next_keyframe | 20.42 [18.71, 22.09] | 0.592 [0.501, 0.684] | 0.231 [0.179, 0.290] | 1.00 | 2.82 |
+
+Prediction time 5496 ms per image, render 22.0 ms per view (NVIDIA L4).
+

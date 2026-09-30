@@ -46,6 +46,10 @@ quoting any number.
 | lidar | 16.29 | 0.587 | 0.580 | 576,114 | 2.9 |
 | lidar_depth0.05 | 17.54 | 0.599 | 0.525 | 674,323 | 3.3 |
 | lidar_depth0.2 | 18.51 | 0.608 | 0.497 | 736,227 | 3.5 |
+| random_15k | 12.36 | 0.512 | 0.729 | 427,153 | 4.4 |
+| lidar_15k | 14.04 | 0.522 | 0.605 | 948,796 | 8.4 |
+| lidar_depth0.05_15k | 16.94 | 0.574 | 0.469 | 1,337,190 | 11.6 |
+| lidar_depth0.2_15k | 18.32 | 0.584 | 0.417 | 1,516,755 | 12.8 |
 
 **Track B - VGGT vs Depth Pro on identical reference pixels (AbsRel, 95% CI)**
 

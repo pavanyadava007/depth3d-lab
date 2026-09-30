@@ -1,0 +1,78 @@
+[
+ {
+  "key": "scene-0061_10_cam_front",
+  "scene": "scene-0061",
+  "camera": "CAM_FRONT",
+  "t_index": 10,
+  "layers": {
+   "image": "scene-0061_10_cam_front_image.png",
+   "depth_pro": "scene-0061_10_cam_front_depth_pro.png",
+   "dav2": "scene-0061_10_cam_front_dav2.png",
+   "lidar": "scene-0061_10_cam_front_lidar.png"
+  },
+  "depth_pro_abs_rel_raw": 0.12032971531152725,
+  "depth_pro_abs_rel_scaled": 0.11565060913562775,
+  "depth_pro_median_scale": 1.0100131354195687,
+  "dav2_abs_rel_raw": 0.508460521697998,
+  "dav2_abs_rel_scaled": 0.24409490823745728,
+  "dav2_median_scale": 0.6565992779492793,
+  "n_lidar_points": 2924
+ },
+ {
+  "key": "scene-0916_20_cam_back",
+  "scene": "scene-0916",
+  "camera": "CAM_BACK",
+  "t_index": 20,
+  "layers": {
+   "image": "scene-0916_20_cam_back_image.png",
+   "depth_pro": "scene-0916_20_cam_back_depth_pro.png",
+   "dav2": "scene-0916_20_cam_back_dav2.png",
+   "lidar": "scene-0916_20_cam_back_lidar.png"
+  },
+  "depth_pro_abs_rel_raw": 0.14290431141853333,
+  "depth_pro_abs_rel_scaled": 0.11226633936166763,
+  "depth_pro_median_scale": 0.8639909068417088,
+  "dav2_abs_rel_raw": 0.8898575305938721,
+  "dav2_abs_rel_scaled": 0.23152633011341095,
+  "dav2_median_scale": 0.5643070111352099,
+  "n_lidar_points": 5373
+ },
+ {
+  "key": "scene-0553_15_cam_front_left",
+  "scene": "scene-0553",
+  "camera": "CAM_FRONT_LEFT",
+  "t_index": 15,
+  "layers": {
+   "image": "scene-0553_15_cam_front_left_image.png",
+   "depth_pro": "scene-0553_15_cam_front_left_depth_pro.png",
+   "dav2": "scene-0553_15_cam_front_left_dav2.png",
+   "lidar": "scene-0553_15_cam_front_left_lidar.png"
+  },
+  "depth_pro_abs_rel_raw": 0.33274874091148376,
+  "depth_pro_abs_rel_scaled": 0.32320767641067505,
+  "depth_pro_median_scale": 1.5860042525498863,
+  "dav2_abs_rel_raw": 0.4187163710594177,
+  "dav2_abs_rel_scaled": 0.3272159695625305,
+  "dav2_median_scale": 0.9075144187098945,
+  "n_lidar_points": 2810
+ },
+ {
+  "key": "scene-1094_12_cam_front",
+  "scene": "scene-1094",
+  "camera": "CAM_FRONT",
+  "t_index": 12,
+  "layers": {
+   "image": "scene-1094_12_cam_front_image.png",
+   "depth_pro": "scene-1094_12_cam_front_depth_pro.png",
+   "dav2": "scene-1094_12_cam_front_dav2.png",
+   "lidar": "scene-1094_12_cam_front_lidar.png"
+  },
+  "depth_pro_abs_rel_raw": 0.2877297103404999,
+  "depth_pro_abs_rel_scaled": 0.063716821372509,
+  "depth_pro_median_scale": 1.4057218580371462,
+  "dav2_abs_rel_raw": 0.27685922384262085,
+  "dav2_abs_rel_scaled": 0.10493545234203339,
+  "dav2_median_scale": 0.784924286784947,
+  "n_lidar_points": 3379
+ }
+]
