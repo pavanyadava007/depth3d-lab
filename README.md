@@ -56,7 +56,11 @@ quoting any number.
 
 **Track E - next-frame synthesis on 2 held-out scenes**
 
-not measured
+| method | PSNR | LPIPS |
+|---|---|---|
+| fm_sample | 23.82 [23.61, 24.04] | 0.099 [0.096, 0.102] |
+| regression | 24.74 [24.52, 24.98] | 0.121 [0.119, 0.123] |
+| copy_current | 24.38 [24.09, 24.69] | 0.040 [0.038, 0.042] |
 
 **Track D - SHARP single-image Gaussians rendered at the next pose**
 

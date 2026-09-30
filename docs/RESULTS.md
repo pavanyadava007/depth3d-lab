@@ -188,7 +188,22 @@ Relative camera pose vs nuScenes GT over 160 view pairs: rotation error mean 0.3
 
 Data: 2,342 CAM_FRONT frames (keyframes + sweeps, 404 keyframes) at 128x64; 1,865 train / 467 test consecutive pairs (median dt 0.10 s); held-out scenes scene-0655, scene-1094.
 
-Not measured: results/synthesis_nextframe.json missing.
+Training fm: 12.4M-parameter UNet, 2,150 steps, batch 64, lr 0.0002, 40.0 min on NVIDIA L4 (world size 1; the two trainings shared the GPU), final logged loss 0.0430.
+
+Training regression: 12.4M-parameter UNet, 2,150 steps, batch 64, lr 0.0002, 40.0 min on NVIDIA L4 (world size 1; the two trainings shared the GPU), final logged loss 0.0025.
+
+Evaluation on 467 held-out pairs, sampler Euler, 50 steps, 173.8 ms per sampled frame (NVIDIA L4).
+
+| method | PSNR vs real next frame [95% CI] | LPIPS (alex) [95% CI] |
+|---|---|---|
+| fm_sample | 23.82 [23.61, 24.04] | 0.099 [0.096, 0.102] |
+| regression | 24.74 [24.52, 24.98] | 0.121 [0.119, 0.123] |
+| copy_current | 24.38 [24.09, 24.69] | 0.040 [0.038, 0.042] |
+
+Paired LPIPS, flow-matching sample minus regression UNet: -0.022 [-0.025, -0.019] (negative = sample is perceptually closer).
+Paired LPIPS, sample minus copy-current-frame: 0.059 [0.057, 0.061]; paired PSNR: -0.56 [-0.73, -0.40] dB.
+FID of unconditional samples vs held-out frames: 390.3 (467 generated, 467 real). unconditional samples (condition zeroed) vs held-out real frames, 128x64 upsampled to 299 by torchmetrics; small n, treat as indicative only
+
 ## Track D - single-image 3D Gaussians (Apple SHARP) rendered at the true next pose
 
 Not measured: results/sharp_nvs.json missing (see STATUS.md for the reason).
