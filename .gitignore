@@ -14,3 +14,6 @@ checkpoints/
 site/*.png
 docs/img/*.png
 !docs/img/*.jpg
+SPEC.md
+NOTES*.md
+scratch/
