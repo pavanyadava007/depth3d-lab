@@ -468,6 +468,7 @@ def main() -> None:
     for p in (DOC, README):
         if p.exists() and any(ch in p.read_text() for ch in "–—"):
             raise SystemExit(f"long dash found in {p}")
+    write_status_block()
     print(f"wrote {DOC}")
 
 
