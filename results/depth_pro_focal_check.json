@@ -1,0 +1,28 @@
+{
+ "sample_token": "f1e3d9d08f044c439ce86a2d6fcca57b",
+ "device": "cpu fp32",
+ "cameras": {
+  "CAM_FRONT": {
+   "image_width_px": 1600,
+   "true_focal_px": 1266.417203046554,
+   "library_estimated_focal_px": 1378.658447265625,
+   "ours_estimated_focal_px": 1378.658447265625,
+   "max_abs_diff_estimated_focal_variant_m": 0.0,
+   "max_abs_diff_known_focal_variant_m": 0.0,
+   "median_depth_estimated_focal_m": 17.747303009033203,
+   "median_depth_known_focal_m": 16.30243682861328,
+   "true_over_estimated_focal": 0.9185866198827667
+  },
+  "CAM_BACK": {
+   "image_width_px": 1600,
+   "true_focal_px": 809.2209905677063,
+   "library_estimated_focal_px": 956.239501953125,
+   "ours_estimated_focal_px": 956.239501953125,
+   "max_abs_diff_estimated_focal_variant_m": 0.0,
+   "max_abs_diff_known_focal_variant_m": 0.0,
+   "median_depth_estimated_focal_m": 15.88248062133789,
+   "median_depth_known_focal_m": 13.440604209899902,
+   "true_over_estimated_focal": 0.846253463609135
+  }
+ }
+}
