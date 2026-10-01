@@ -25,8 +25,12 @@ LiDAR ground truth: 2,424 images (404 keyframes x 6 cameras), points with 1 m < 
 | depth_pro_gtfocal median-scaled | 0.178 | 1.629 | 6.725 | 0.314 | 0.760 | 0.902 | 0.951 | 2,424 |  |
 | dav2_metric_outdoor_large raw | 0.582 | 5.133 | 8.957 | 0.524 | 0.199 | 0.604 | 0.787 | 2,424 | 365 |
 | dav2_metric_outdoor_large median-scaled | 0.194 | 1.643 | 7.446 | 0.336 | 0.715 | 0.871 | 0.937 | 2,424 |  |
+| moge2 raw | 0.193 | 1.366 | 6.025 | 0.316 | 0.731 | 0.915 | 0.955 | 2,424 | 188 |
+| moge2 median-scaled | 0.151 | 1.277 | 6.085 | 0.292 | 0.813 | 0.922 | 0.956 | 2,424 |  |
+| moge2_gtfocal raw | 0.168 | 1.258 | 5.932 | 0.308 | 0.812 | 0.922 | 0.953 | 2,424 | 188 |
+| moge2_gtfocal median-scaled | 0.152 | 1.280 | 6.064 | 0.293 | 0.812 | 0.922 | 0.957 | 2,424 |  |
 
-'raw' is the metric output as predicted; 'median-scaled' multiplies each image by median(GT)/median(pred) so that the remaining error is shape error only. 'depth_pro_gtfocal' feeds the true nuScenes focal length instead of the model's own focal estimate. Timing is the median model time per 1600x900 image.
+'raw' is the metric output as predicted; 'median-scaled' multiplies each image by median(GT)/median(pred) so that the remaining error is shape error only. The '_gtfocal' variants (Depth Pro, MoGe-2) feed the true nuScenes focal length instead of the model's own focal estimate and come from the same forward pass as the own-focal variant. Timing is the median model time per 1600x900 image.
 
 ### Scale factor and focal estimate per camera
 
@@ -50,6 +54,18 @@ LiDAR ground truth: 2,424 images (404 keyframes x 6 cameras), points with 1 m < 
 | dav2_metric_outdoor_large | CAM_BACK | 0.474 | 0.432 / 0.557 | n/a | n/a | n/a |
 | dav2_metric_outdoor_large | CAM_BACK_LEFT | 0.677 | 0.522 / 0.961 | n/a | n/a | n/a |
 | dav2_metric_outdoor_large | CAM_BACK_RIGHT | 0.765 | 0.612 / 0.934 | n/a | n/a | n/a |
+| moge2 | CAM_FRONT | 1.012 | 0.900 / 1.180 | 1266 | 1214 | 0.958 |
+| moge2 | CAM_FRONT_LEFT | 0.993 | 0.891 / 1.211 | 1273 | 1239 | 0.974 |
+| moge2 | CAM_FRONT_RIGHT | 0.995 | 0.847 / 1.173 | 1261 | 1259 | 0.998 |
+| moge2 | CAM_BACK | 0.855 | 0.732 / 0.938 | 809 | 991 | 1.225 |
+| moge2 | CAM_BACK_LEFT | 0.982 | 0.844 / 1.121 | 1257 | 1269 | 1.010 |
+| moge2 | CAM_BACK_RIGHT | 0.989 | 0.861 / 1.177 | 1260 | 1249 | 0.992 |
+| moge2_gtfocal | CAM_FRONT | 0.984 | 0.879 / 1.096 | 1266 | 1214 | 0.958 |
+| moge2_gtfocal | CAM_FRONT_LEFT | 0.970 | 0.875 / 1.221 | 1273 | 1239 | 0.974 |
+| moge2_gtfocal | CAM_FRONT_RIGHT | 0.984 | 0.886 / 1.166 | 1261 | 1259 | 0.998 |
+| moge2_gtfocal | CAM_BACK | 0.923 | 0.802 / 1.019 | 809 | 991 | 1.225 |
+| moge2_gtfocal | CAM_BACK_LEFT | 0.988 | 0.860 / 1.138 | 1257 | 1269 | 1.010 |
+| moge2_gtfocal | CAM_BACK_RIGHT | 0.974 | 0.884 / 1.162 | 1260 | 1249 | 0.992 |
 
 A scale factor of 1.0 means the metric output is already on the LiDAR scale for that camera.
 
@@ -66,6 +82,12 @@ A scale factor of 1.0 means the metric output is already on the LiDAR scale for 
 | dav2_metric_outdoor_large | front | 0.399 | 0.140 | 0.242 | 0.821 | 1,219,883 |
 | dav2_metric_outdoor_large | side | 0.477 | 0.207 | 0.222 | 0.697 | 5,715,488 |
 | dav2_metric_outdoor_large | back | 1.034 | 0.191 | 0.097 | 0.699 | 1,826,681 |
+| moge2 | front | 0.122 | 0.112 | 0.860 | 0.880 | 1,219,883 |
+| moge2 | side | 0.178 | 0.163 | 0.779 | 0.790 | 5,715,488 |
+| moge2 | back | 0.289 | 0.140 | 0.493 | 0.843 | 1,826,681 |
+| moge2_gtfocal | front | 0.128 | 0.123 | 0.889 | 0.860 | 1,219,883 |
+| moge2_gtfocal | side | 0.170 | 0.164 | 0.809 | 0.790 | 5,715,488 |
+| moge2_gtfocal | back | 0.190 | 0.134 | 0.769 | 0.847 | 1,826,681 |
 
 ### Per camera - AbsRel raw / scaled
 
@@ -74,6 +96,8 @@ A scale factor of 1.0 means the metric output is already on the LiDAR scale for 
 | depth_pro | 0.191 / 0.124 | 0.286 / 0.182 | 0.237 / 0.204 | 0.259 / 0.177 | 0.301 / 0.174 | 0.251 / 0.202 |
 | depth_pro_gtfocal | 0.202 / 0.124 | 0.310 / 0.182 | 0.275 / 0.204 | 0.236 / 0.177 | 0.326 / 0.174 | 0.309 / 0.202 |
 | dav2_metric_outdoor_large | 0.399 / 0.140 | 0.514 / 0.202 | 0.432 / 0.215 | 1.034 / 0.191 | 0.542 / 0.190 | 0.412 / 0.223 |
+| moge2 | 0.122 / 0.112 | 0.169 / 0.161 | 0.175 / 0.179 | 0.289 / 0.140 | 0.195 / 0.152 | 0.169 / 0.164 |
+| moge2_gtfocal | 0.128 / 0.123 | 0.175 / 0.163 | 0.161 / 0.178 | 0.190 / 0.134 | 0.189 / 0.150 | 0.153 / 0.166 |
 
 ### Per depth bin - AbsRel and RMSE
 
@@ -88,6 +112,12 @@ A scale factor of 1.0 means the metric output is already on the LiDAR scale for 
 | dav2_metric_outdoor_large | 1-20m | 0.668 | 0.168 | 6.96 | 2.50 | 6,653,105 |
 | dav2_metric_outdoor_large | 20-40m | 0.334 | 0.238 | 12.10 | 9.21 | 1,599,744 |
 | dav2_metric_outdoor_large | 40-80m | 0.250 | 0.405 | 16.98 | 24.62 | 509,203 |
+| moge2 | 1-20m | 0.188 | 0.133 | 2.82 | 2.49 | 6,653,105 |
+| moge2 | 20-40m | 0.198 | 0.189 | 8.22 | 8.28 | 1,599,744 |
+| moge2 | 40-80m | 0.244 | 0.265 | 17.56 | 18.46 | 509,203 |
+| moge2_gtfocal | 1-20m | 0.158 | 0.134 | 2.62 | 2.51 | 6,653,105 |
+| moge2_gtfocal | 20-40m | 0.190 | 0.189 | 8.11 | 8.29 | 1,599,744 |
+| moge2_gtfocal | 40-80m | 0.243 | 0.261 | 17.57 | 18.29 | 509,203 |
 
 ### Reading the scale error (generated from the tables above)
 
@@ -97,6 +127,10 @@ depth_pro_gtfocal: per-image median scaling lowers AbsRel from 0.277 to 0.178, i
 
 dav2_metric_outdoor_large: per-image median scaling lowers AbsRel from 0.582 to 0.194, i.e. 67% of the raw error is a per-image scale error and the rest is shape error. Worst camera group raw: back (AbsRel 1.034), best: front (0.399). Median scale factor CAM_FRONT 0.73 vs CAM_BACK 0.47. Fraction of LiDAR pixels where the raw prediction exceeded 80 m (clipped before scoring): 0.00%.
 
+moge2: per-image median scaling lowers AbsRel from 0.193 to 0.151, i.e. 22% of the raw error is a per-image scale error and the rest is shape error. Worst camera group raw: back (AbsRel 0.289), best: front (0.122). Median scale factor CAM_FRONT 1.01 vs CAM_BACK 0.85. Focal estimate / true focal: CAM_FRONT 0.96, CAM_BACK 1.22. Fraction of LiDAR pixels where the raw prediction exceeded 80 m (clipped before scoring): 0.10%.
+
+moge2_gtfocal: per-image median scaling lowers AbsRel from 0.168 to 0.152, i.e. 10% of the raw error is a per-image scale error and the rest is shape error. Worst camera group raw: back (AbsRel 0.190), best: front (0.128). Median scale factor CAM_FRONT 0.98 vs CAM_BACK 0.92. Focal estimate / true focal: CAM_FRONT 0.96, CAM_BACK 1.22. Fraction of LiDAR pixels where the raw prediction exceeded 80 m (clipped before scoring): 0.09%.
+
 ### Per-image AbsRel, mean with 95% bootstrap CI over images
 
 | variant | raw | median-scaled |
@@ -104,6 +138,8 @@ dav2_metric_outdoor_large: per-image median scaling lowers AbsRel from 0.582 to 
 | depth_pro | 0.255 [0.250, 0.260] | 0.177 [0.173, 0.182] |
 | depth_pro_gtfocal | 0.276 [0.271, 0.282] | 0.177 [0.173, 0.182] |
 | dav2_metric_outdoor_large | 0.560 [0.549, 0.571] | 0.193 [0.189, 0.197] |
+| moge2 | 0.187 [0.183, 0.190] | 0.151 [0.147, 0.156] |
+| moge2_gtfocal | 0.166 [0.163, 0.169] | 0.153 [0.148, 0.157] |
 
 ## Track C - 3D Gaussian Splatting on one driving scene (gsplat, own training loop)
 
@@ -138,6 +174,21 @@ Scene scene-0916, 216 train / 30 held-out views (every 8th timestamp (offset 4),
 LiDAR init vs random init: 2.89 dB PSNR on held-out views (positive favours LiDAR init).
 lidar_depth0.05 vs lidar: 1.26 dB PSNR, -0.054 LPIPS (negative LPIPS favours depth supervision).
 lidar_depth0.2 vs lidar: 2.22 dB PSNR, -0.083 LPIPS (negative LPIPS favours depth supervision).
+
+### Seed variance (7k-step variants, seeds as listed; mean +- sample std over seeds)
+
+| variant | seeds | PSNR test | SSIM | LPIPS (alex) | final gaussians | train min (NVIDIA L4) |
+|---|---|---|---|---|---|---|
+| random | 0,1,2 | 13.78 +- 0.42 | 0.537 +- 0.014 | 0.744 +- 0.012 | 206,903 +- 1,768 | 1.5 +- 0.0 |
+| lidar | 0,1,2 | 15.91 +- 0.37 | 0.585 +- 0.002 | 0.590 +- 0.009 | 570,107 +- 5,392 | 2.8 +- 0.1 |
+| lidar_depth0.05 | 0,1,2 | 17.46 +- 0.10 | 0.599 +- 0.001 | 0.522 +- 0.003 | 665,639 +- 7,617 | 3.3 +- 0.1 |
+| lidar_depth0.2 | 0,1,2 | 18.43 +- 0.07 | 0.608 +- 0.001 | 0.498 +- 0.001 | 728,351 +- 6,910 | 3.5 +- 0.0 |
+
+lidar minus random, per seed (0, 1, 2): PSNR +2.89, +1.33, +2.16 dB (3/3 seeds positive); SSIM +0.067, +0.039, +0.039 (3/3 positive); LPIPS -0.178, -0.143, -0.142 (3/3 seeds negative, i.e. better).
+
+lidar_depth0.05 minus lidar, per seed (0, 1, 2): PSNR +1.26, +1.94, +1.46 dB (3/3 seeds positive); SSIM +0.012, +0.017, +0.013 (3/3 positive); LPIPS -0.054, -0.076, -0.074 (3/3 seeds negative, i.e. better).
+
+lidar_depth0.2 minus lidar_depth0.05, per seed (0, 1, 2): PSNR +0.96, +0.93, +1.02 dB (3/3 seeds positive); SSIM +0.009, +0.008, +0.009 (3/3 positive); LPIPS -0.029, -0.020, -0.023 (3/3 seeds negative, i.e. better).
 
 ### Held-out PSNR per camera
 
@@ -196,9 +247,9 @@ Relative camera pose vs nuScenes GT over 160 view pairs: rotation error mean 0.3
 
 Data: 2,342 CAM_FRONT frames (keyframes + sweeps, 404 keyframes) at 128x64; 1,865 train / 467 test consecutive pairs (median dt 0.10 s); held-out scenes scene-0655, scene-1094.
 
-Training fm: 12.4M-parameter UNet, 2,150 steps, batch 64, lr 0.0002, 40.0 min on NVIDIA L4 (world size 1; the two trainings shared the GPU), final logged loss 0.0430.
+Training fm (seed 0): 12.4M-parameter UNet, 2,150 steps, batch 64, lr 0.0002, 40.0 min on NVIDIA L4 (world size 1; the two trainings shared the GPU), final logged loss 0.0430.
 
-Training regression: 12.4M-parameter UNet, 2,150 steps, batch 64, lr 0.0002, 40.0 min on NVIDIA L4 (world size 1; the two trainings shared the GPU), final logged loss 0.0025.
+Training regression (seed 0): 12.4M-parameter UNet, 2,150 steps, batch 64, lr 0.0002, 40.0 min on NVIDIA L4 (world size 1; the two trainings shared the GPU), final logged loss 0.0025.
 
 Evaluation on 467 held-out pairs, sampler Euler, 50 steps, 173.8 ms per sampled frame (NVIDIA L4).
 
@@ -211,6 +262,24 @@ Evaluation on 467 held-out pairs, sampler Euler, 50 steps, 173.8 ms per sampled 
 Paired LPIPS, flow-matching sample minus regression UNet: -0.022 [-0.025, -0.019] (negative = sample is perceptually closer).
 Paired LPIPS, sample minus copy-current-frame: 0.059 [0.057, 0.061]; paired PSNR: -0.56 [-0.73, -0.40] dB.
 FID of unconditional samples vs held-out frames: 390.3 (467 generated, 467 real). unconditional samples (condition zeroed) vs held-out real frames, 128x64 upsampled to 299 by torchmetrics; small n, treat as indicative only
+
+### Seed variance (seeds 0, 1, 2: training seed and sampling seed; mean +- sample std over seeds)
+
+Seed 0 training (NVIDIA L4, the two trainings shared the GPU): fm 2,150 steps in 40.0 min, regression 2,150 steps in 40.0 min.
+Seed 1 training (NVIDIA L4, the two trainings shared the GPU): fm 2,155 steps in 40.0 min, regression 2,155 steps in 40.0 min.
+Seed 2 training (NVIDIA L4, the two trainings shared the GPU): fm 2,149 steps in 40.0 min, regression 2,149 steps in 40.0 min.
+
+| method | seeds | PSNR | LPIPS (alex) |
+|---|---|---|---|
+| fm_sample | 0,1,2 | 23.80 +- 0.10 | 0.098 +- 0.006 |
+| regression | 0,1,2 | 24.92 +- 0.19 | 0.120 +- 0.003 |
+| copy_current | 0,1,2 | 24.38 +- 0.00 | 0.040 +- 0.000 |
+
+Paired LPIPS fm_sample minus regression per seed (mean [95% CI over pairs]): seed 0: -0.0222 [-0.0255, -0.0186], seed 1: -0.0127 [-0.0167, -0.0087], seed 2: -0.0297 [-0.0325, -0.0268] (3/3 seeds negative, i.e. the sample is perceptually closer; CI excludes zero in 3/3).
+PSNR fm_sample minus regression per seed: seed 0: -0.92 dB, seed 1: -1.43 dB, seed 2: -1.00 dB (3/3 seeds negative).
+fm_sample minus copy_current per seed: PSNR -0.56, -0.69, -0.50 dB, LPIPS +0.0589, +0.0634, +0.0512 (copy_current is ahead in every seed where PSNR is negative and LPIPS is positive: 3/3).
+regression minus copy_current per seed (difference of means, not a paired test): PSNR +0.36, +0.74, +0.51 dB (3/3 seeds positive), LPIPS +0.0811, +0.0761, +0.0809 (3/3 seeds positive, i.e. worse).
+FID of unconditional samples per seed: seed 0: 390.3, seed 1: 388.1, seed 2: 397.5.
 
 ## Track D - single-image 3D Gaussians (Apple SHARP) rendered at the true next pose
 

@@ -1,0 +1,51 @@
+{
+  "image_size": [
+    1600,
+    900
+  ],
+  "per_camera": {
+    "CAM_BACK": {
+      "n_calibrations": 10,
+      "dx_mean_px": 40.64273327013814,
+      "dy_mean_px": 29.82101384337152,
+      "focal_mean_px": 804.2890197207475
+    },
+    "CAM_BACK_LEFT": {
+      "n_calibrations": 10,
+      "dx_mean_px": 7.098317790817328,
+      "dy_mean_px": 32.53267038364085,
+      "focal_mean_px": 1256.0393113577313
+    },
+    "CAM_BACK_RIGHT": {
+      "n_calibrations": 10,
+      "dx_mean_px": 14.502465045356894,
+      "dy_mean_px": 35.73674485233418,
+      "focal_mean_px": 1255.6934155823333
+    },
+    "CAM_FRONT": {
+      "n_calibrations": 10,
+      "dx_mean_px": 20.395457759438226,
+      "dy_mean_px": 32.89810452475177,
+      "focal_mean_px": 1260.9755626753445
+    },
+    "CAM_FRONT_LEFT": {
+      "n_calibrations": 10,
+      "dx_mean_px": 26.86572088505593,
+      "dy_mean_px": 18.217191600481147,
+      "focal_mean_px": 1266.7037819209145
+    },
+    "CAM_FRONT_RIGHT": {
+      "n_calibrations": 10,
+      "dx_mean_px": 11.89644955372089,
+      "dy_mean_px": 27.98232732833037,
+      "focal_mean_px": 1259.207871417898
+    }
+  },
+  "overall": {
+    "n_calibrations": 60,
+    "abs_dx_mean_px": 21.811009235561997,
+    "abs_dy_mean_px": 29.531342088818313,
+    "abs_dx_max_px": 57.77743268636959,
+    "abs_dy_max_px": 51.19579884916527
+  }
+}

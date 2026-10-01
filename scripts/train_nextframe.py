@@ -30,7 +30,8 @@ def main() -> None:
     ap.add_argument("--base", type=int, default=64)
     ap.add_argument("--ema", type=float, default=0.999)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--out", default="")
+    ap.add_argument("--out", default="", help="checkpoint path (default data/nextframe/<mode>.pt)")
+    ap.add_argument("--out-json", default="", help="result json (default results/nextframe_train_<mode>.json)")
     ap.add_argument("--log-every", type=int, default=100)
     ap.add_argument("--max-minutes", type=float, default=40.0, help="wall-clock cap; steps actually done are recorded")
     args = ap.parse_args()
@@ -108,7 +109,7 @@ def main() -> None:
             "curve": curve,
         }
         Path("results").mkdir(exist_ok=True)
-        Path(f"results/nextframe_train_{args.mode}.json").write_text(json.dumps(info, indent=1))
+        Path(args.out_json or f"results/nextframe_train_{args.mode}.json").write_text(json.dumps(info, indent=1))
         print(f"trained {steps_done} steps in {train_time:.0f}s, {n_params / 1e6:.1f}M params (NVIDIA L4)")
         print("DONE")
     if distributed:

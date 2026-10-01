@@ -1,0 +1,30 @@
+{
+ "sample_token": "f1e3d9d08f044c439ce86a2d6fcca57b",
+ "device": "NVIDIA L4, fp16 autocast forward, fp32 post-processing",
+ "cameras": {
+  "CAM_FRONT": {
+   "image_width_px": 1600,
+   "true_focal_px": 1266.417203046554,
+   "library_estimated_focal_px": 1335.8969688415527,
+   "ours_estimated_focal_px": 1335.8969688415527,
+   "max_abs_diff_estimated_focal_variant_m": 0.0,
+   "max_abs_diff_known_focal_variant_m": 0.0,
+   "median_depth_estimated_focal_m": 18.361318588256836,
+   "median_depth_known_focal_m": 17.949413299560547,
+   "true_over_estimated_focal": 0.9479901763268096,
+   "mask_frac_valid": 0.844688892364502
+  },
+  "CAM_BACK": {
+   "image_width_px": 1600,
+   "true_focal_px": 809.2209905677063,
+   "library_estimated_focal_px": 990.8700942993164,
+   "ours_estimated_focal_px": 990.8700942993164,
+   "max_abs_diff_estimated_focal_variant_m": 0.0,
+   "max_abs_diff_known_focal_variant_m": 0.0,
+   "median_depth_estimated_focal_m": 16.29104995727539,
+   "median_depth_known_focal_m": 15.427434921264648,
+   "true_over_estimated_focal": 0.8166771761740762,
+   "mask_frac_valid": 0.9225167036056519
+  }
+ }
+}

@@ -1,0 +1,83 @@
+{
+ "dataset": "nuScenes v1.0-mini CAM_FRONT keyframes + sweeps, 128x64, consecutive pairs (0.1 s)",
+ "holdout_scenes": [
+  "scene-0655",
+  "scene-1094"
+ ],
+ "n_test_pairs": 467,
+ "gpu": "NVIDIA L4",
+ "sampler": "Euler, 50 steps",
+ "sampling_ms_per_frame": 173.78721523125571,
+ "methods": {
+  "fm_sample": {
+   "psnr": {
+    "mean": 23.69791631269761,
+    "lo": 23.489486388527098,
+    "hi": 23.909309816054154,
+    "n": 467
+   },
+   "lpips_alex": {
+    "mean": 0.10370657184586024,
+    "lo": 0.10021469018539729,
+    "hi": 0.10711007891561859,
+    "n": 467
+   }
+  },
+  "regression": {
+   "psnr": {
+    "mean": 25.124400353278542,
+    "lo": 24.868174277842684,
+    "hi": 25.381327359324096,
+    "n": 467
+   },
+   "lpips_alex": {
+    "mean": 0.11636483945287525,
+    "lo": 0.11415473708695467,
+    "hi": 0.11870725117982774,
+    "n": 467
+   }
+  },
+  "copy_current": {
+   "psnr": {
+    "mean": 24.38293323067577,
+    "lo": 24.09384471517559,
+    "hi": 24.688836703514898,
+    "n": 467
+   },
+   "lpips_alex": {
+    "mean": 0.04026402424017817,
+    "lo": 0.038371754884338444,
+    "hi": 0.04218843379288531,
+    "n": 467
+   }
+  }
+ },
+ "paired_lpips_fm_minus_regression": {
+  "mean": -0.012658267607015002,
+  "lo": -0.016714646095286344,
+  "hi": -0.008729374696494617,
+  "n": 467,
+  "frac_a_lower": 0.6788008565310493
+ },
+ "paired_lpips_fm_minus_copy": {
+  "mean": 0.06344254760568208,
+  "lo": 0.059977644806921214,
+  "hi": 0.06697034721537713,
+  "n": 467,
+  "frac_a_lower": 0.0
+ },
+ "paired_psnr_fm_minus_copy": {
+  "mean": -0.6850169179781601,
+  "lo": -0.8576609056052099,
+  "hi": -0.5247863803226384,
+  "n": 467,
+  "frac_a_lower": 0.5417558886509636
+ },
+ "fid_unconditional": {
+  "value": 388.13568115234375,
+  "n_real": 467,
+  "n_generated": 467,
+  "note": "unconditional samples (condition zeroed) vs held-out real frames, 128x64 upsampled to 299 by torchmetrics; small n, treat as indicative only"
+ },
+ "seed": 1
+}

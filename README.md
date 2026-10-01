@@ -16,15 +16,15 @@ images or point clouds**, only sample tokens, metrics, plots and a few small ren
 
 | Track | Topic | Question | What ran |
 |---|---|---|---|
-| A | Depth estimation | How much of the metric error of zero-shot monocular depth models on nuScenes is a global scale error (removable by per-image median scaling) and how much is shape error? Which camera suffers most? | Apple Depth Pro (own focal and known focal), Depth Anything V2 metric outdoor Large, vs projected LiDAR on all 2,424 keyframe images |
+| A | Depth estimation | How much of the metric error of zero-shot monocular depth models on nuScenes is a global scale error (removable by per-image median scaling) and how much is shape error? Which camera suffers most? | Apple Depth Pro (own focal and known focal), Depth Anything V2 metric outdoor Large, MoGe-2 (own focal and known focal), vs projected LiDAR on all 2,424 keyframe images |
 | C | Neural rendering / view synthesis | Does LiDAR initialisation and monocular-depth supervision help 3D Gaussian Splatting on a sparse (2 Hz, forward-moving) driving scene? | gsplat rasteriser, own training loop, 4 variants, held-out timestamps |
-| B | 3D reconstruction | Does feed-forward multi-view reconstruction (VGGT) beat the best monocular model on identical pixels, for a 6-camera rig at one time and for a 5-frame forward-motion window? How good are its relative camera poses? | VGGT-1B, 40 + 40 sequences, LiDAR and nuScenes poses as GT |
+| B | 3D reconstruction | Does feed-forward multi-view reconstruction (VGGT) beat a strong monocular model (Depth Pro) on identical pixels, for a 6-camera rig at one time and for a 5-frame forward-motion window? How good are its relative camera poses? | VGGT-1B, 40 + 40 sequences, LiDAR and nuScenes poses as GT |
 | E | Image / video synthesis | Can a small conditional flow-matching model predict the next frame better than copying the current frame or a deterministic regression UNet? | 12M-parameter UNet, 128x64 CAM_FRONT frames, 2 held-out scenes |
 | D | View synthesis from one image | Do Apple SHARP's single-image metric Gaussians re-render correctly at the true pose of the next frame? | SHARP, 1 keyframe per scene, next sweep and next keyframe |
 
 Zero-shot evaluation of public models throughout; the only training is the 3DGS scenes (Track C) and the small
-next-frame models (Track E). nuScenes-mini only (10 scenes), single seed. Read the limits section before
-quoting any number.
+next-frame models (Track E). nuScenes-mini only (10 scenes); three seeds (0, 1, 2) for the 7k-step 3DGS variants and
+for the next-frame models, one seed everywhere else. Read the limits section before quoting any number.
 
 ## Headline numbers (generated)
 
@@ -37,6 +37,8 @@ quoting any number.
 | depth_pro | 0.257 | 0.178 | 0.525 | 0.760 | 599 |
 | depth_pro_gtfocal | 0.277 | 0.178 | 0.460 | 0.760 | 599 |
 | dav2_metric_outdoor_large | 0.582 | 0.194 | 0.199 | 0.715 | 365 |
+| moge2 | 0.193 | 0.151 | 0.731 | 0.813 | 188 |
+| moge2_gtfocal | 0.168 | 0.152 | 0.812 | 0.812 | 188 |
 
 **Track C - 3DGS ablation on the selected scene (held-out views)**
 
@@ -50,6 +52,15 @@ quoting any number.
 | lidar_15k | 14.04 | 0.522 | 0.605 | 948,796 | 8.4 |
 | lidar_depth0.05_15k | 16.94 | 0.574 | 0.469 | 1,337,190 | 11.6 |
 | lidar_depth0.2_15k | 18.32 | 0.584 | 0.417 | 1,516,755 | 12.8 |
+
+Seed variance of the 7k-step variants (mean +- sample std over the listed seeds):
+
+| variant | seeds | PSNR | SSIM | LPIPS |
+|---|---|---|---|---|
+| random | 0,1,2 | 13.78 +- 0.42 | 0.537 +- 0.014 | 0.744 +- 0.012 |
+| lidar | 0,1,2 | 15.91 +- 0.37 | 0.585 +- 0.002 | 0.590 +- 0.009 |
+| lidar_depth0.05 | 0,1,2 | 17.46 +- 0.10 | 0.599 +- 0.001 | 0.522 +- 0.003 |
+| lidar_depth0.2 | 0,1,2 | 18.43 +- 0.07 | 0.608 +- 0.001 | 0.498 +- 0.001 |
 
 **Track B - VGGT vs Depth Pro on identical reference pixels (AbsRel, 95% CI)**
 
@@ -66,6 +77,14 @@ quoting any number.
 | regression | 24.74 [24.52, 24.98] | 0.121 [0.119, 0.123] |
 | copy_current | 24.38 [24.09, 24.69] | 0.040 [0.038, 0.042] |
 
+Seed variance (training and sampling seed; mean +- sample std over the listed seeds):
+
+| method | seeds | PSNR | LPIPS |
+|---|---|---|---|
+| fm_sample | 0,1,2 | 23.80 +- 0.10 | 0.098 +- 0.006 |
+| regression | 0,1,2 | 24.92 +- 0.19 | 0.120 +- 0.003 |
+| copy_current | 0,1,2 | 24.38 +- 0.00 | 0.040 +- 0.000 |
+
 **Track D - SHARP single-image Gaussians rendered at the next pose**
 
 | target | PSNR | LPIPS | motion [m] |
@@ -81,7 +100,8 @@ Runtimes, what did not run and every open caveat: [STATUS.md](STATUS.md).
 
 ## What the numbers mean (short reading guide)
 
-- Track A, "raw" is the model's metric output compared with LiDAR in [1, 80] m; "median-scaled" multiplies each
+- Track A, "raw" is the model's metric output compared with LiDAR in [1, 80] m; the "_gtfocal" variants feed the
+  true nuScenes focal length instead of the model's own estimate; "median-scaled" multiplies each
   image by median(LiDAR)/median(prediction) first. The gap between the two rows is the global scale error; what
   remains after scaling is shape error. The "scale factor per camera" table shows where the metric scale is off
   and whether the model's focal-length estimate explains it (the nuScenes back camera has a shorter focal length
@@ -97,37 +117,52 @@ Runtimes, what did not run and every open caveat: [STATUS.md](STATUS.md).
 
 ## Findings (qualitative; every number is in the generated tables)
 
-**Track A.** For both models a large part of the raw metric error on nuScenes is a per-image scale error:
-median scaling removes roughly a third of Depth Pro's AbsRel and a comparable share of DA-V2's; what remains
-(the shape error) is of the same order for the two models, with Depth Pro ahead. Depth Pro's own focal-length
-estimate is higher than the true nuScenes focal for every camera, most for the short-focal back camera (see the
-"scale factor and focal estimate per camera" table). Feeding the true focal makes the raw error *worse*, not
-better: its canonical depth on this data is too near, and the over-estimated focal partly cancels that, so with the
-true focal the systematic under-estimation shows up in all six cameras with a similar scale factor. This was
-cross-checked against the library's own `infer(f_px=...)` on CPU (results/depth_pro_focal_check.json; the two
-code paths agree to the last bit). The front camera is the easiest for both models; the side cameras are the
-hardest before and after scaling. A plausible reason is content, not optics: side views are dominated by close,
-oblique facades, parked cars and vegetation with many LiDAR returns under 20 m, where a relative error costs more
-in AbsRel. This is a hypothesis; the data here cannot separate it from a focal or FOV mismatch to the training
-distribution. Errors grow with distance for both models (depth-bin table), and the tiny fraction of LiDAR pixels
-where a model predicted sky-like depth beyond 80 m is reported and clipped before scoring (KITTI protocol),
-because without clipping a handful of such pixels dominated the squared metrics.
+**Track A.** MoGe-2 is the most accurate of the three models on this data, raw and after median scaling, and also
+the fastest; Depth Pro is second and DA-V2 metric outdoor third on every headline metric. For Depth Pro and DA-V2 a
+large part of the raw metric error is a per-image scale error: median scaling removes roughly a third of Depth Pro's
+AbsRel and about two thirds of DA-V2's. MoGe-2's metric scale is already close to the LiDAR scale on five of the six
+cameras, so scaling removes a smaller share of its error, and what remains (the shape error) keeps the same ordering:
+MoGe-2, then Depth Pro, then DA-V2. Depth Pro's own focal-length estimate is higher than the true nuScenes focal for
+every camera, most for the short-focal back camera; MoGe-2's estimate is within a few percent of the true focal on five
+cameras and too long only for the back camera (see the "scale factor and focal estimate per camera" table). Feeding the
+true focal has opposite effects on the two models. For Depth Pro it makes the raw error *worse*: its canonical depth
+on this data is too near, and the over-estimated focal partly cancels that, so with the true focal the systematic
+under-estimation shows up in all six cameras with a similar scale factor. For MoGe-2 it makes the raw error better,
+almost entirely through the back camera, where the wrong focal was the main source of scale error; on the other
+cameras the change is small in either direction. The Depth Pro path was cross-checked against the library's own
+`infer(f_px=...)` on CPU (results/depth_pro_focal_check.json) and the MoGe-2 path against the library's `infer(fov_x=...)`
+on the GPU (results/moge2_focal_check.json); in both cases the two code paths agree to the last bit. The front camera
+is the easiest for all three models. After median scaling the side cameras are the hardest for all three; before
+scaling the worst group is the side cameras for Depth Pro but the back camera for DA-V2 and MoGe-2, where the short
+focal length shows up as a scale error. A plausible reason for the side cameras is content, not optics: side views are
+dominated by close, oblique facades, parked cars and vegetation with many LiDAR returns under 20 m, where a relative
+error costs more in AbsRel. This is a hypothesis; the data here cannot separate it from a focal or FOV mismatch to the
+training distribution. After median scaling the relative error grows with distance for all three models (depth-bin
+table); raw, the same holds for Depth Pro and MoGe-2, while DA-V2's raw error is largest in the near range, where its
+scale error sits. The tiny fraction of LiDAR pixels where a model predicted sky-like depth beyond 80 m is reported and
+clipped before scoring (KITTI protocol), because without clipping a handful of such pixels dominated the squared
+metrics. MoGe-2 is scored without its validity mask so that all models are compared on identical pixels.
 
 **Track C.** On the most static nuScenes-mini scene the ordering is monotone at both step budgets: random
 (SfM-free) init is worst, aggregated LiDAR init is clearly better on all three metrics, and adding monocular-depth
 supervision from the scale-aligned Depth Pro maps improves held-out PSNR, SSIM and LPIPS further, with the larger
-weight (0.2) ahead of 0.05 (7k set). Absolute quality is low for a 3DGS result and should be read as such: the
+weight (0.2) ahead of 0.05. For the 7k set this ordering was repeated with three seeds: it is the same in every seed
+on all three metrics, and each gap between neighbouring variants is larger than the seed-to-seed spread of the
+variants it separates (seed-variance table; the per-seed differences are listed in docs/RESULTS.md). The spread is
+largest for the random and LiDAR-only variants and smallest with depth supervision. Absolute quality is low for a 3DGS result and should be read as such: the
 held-out views sit 0.5 s (several metres) away from the nearest training views, every camera has its own exposure,
 moving people and cars are modelled as static and ghost, and the training views cover the scene only once. The
 train-view PSNR is far below what dense captures reach, so the model is under-constrained rather than over-fitted.
-One scene, one seed.
+One scene; three seeds at 7k steps, one seed at 15k.
 
 **Track B.** VGGT is not metric (its raw depth is off by a large constant factor, reported as the sequence
 scale), so all comparisons are after alignment. On identical LiDAR pixels of the same reference image, VGGT with
 one scale per sequence and Depth Pro with its per-image median scale end up very close: the paired bootstrap CI
 of the AbsRel difference includes zero in both settings (40 sequences each), with VGGT ahead on average and in
 most sequences for the 5-frame forward-motion window, and a tie for the 6-camera rig at one timestamp. So on
-this data multi-view context does not beat a strong monocular prior by a margin this sample can resolve. Scaling
+this data multi-view context does not beat a strong monocular prior by a margin this sample can resolve. The
+monocular reference in this track is Depth Pro; MoGe-2, which is ahead of Depth Pro in Track A, was not run on the
+Track B sequences. Scaling
 VGGT by a sim(3) fitted to its predicted camera centres is much worse than the LiDAR-median scale, because the
 camera baselines are short (about 1 m inside the rig, a few metres between keyframes) and the fitted scale is
 noisy. VGGT's relative rotations are accurate for the temporal window (median well under one degree) and its
@@ -137,10 +172,16 @@ directions are poor, which matches the low overlap between nuScenes cameras.
 
 **Track E.** With a fixed 40-minute budget on a shared GPU, one Euler sample from the conditional flow-matching UNet is
 perceptually closer to the real next frame than the deterministic regression UNet (lower LPIPS, paired CI excludes
-zero) but has lower PSNR, the usual sharp-sample versus blurry-mean trade-off. Neither model beats copying the current
-frame on either metric: consecutive nuScenes frames are 0.1 s apart, so the copy baseline is strong, and a 12M-parameter
+zero) but has lower PSNR, the usual sharp-sample versus blurry-mean trade-off. Both directions hold in each of the
+three seeds (seed-variance table and the per-seed lines in docs/RESULTS.md), and the gap between the two models is
+larger than the seed-to-seed spread on both metrics. Against copying the current frame the picture is mixed: the
+flow-matching sample is behind the copy baseline on both metrics in every seed, while the regression UNet is slightly
+ahead of it in mean PSNR in every seed (a difference of means, not a paired test) and far behind it in LPIPS, which is
+what a blurry average of the next frame looks like. So neither model produces a next frame that is perceptually
+better than the copy: consecutive nuScenes frames are 0.1 s apart, so the copy baseline is strong, and a 12M-parameter
 model trained for a few thousand steps does not learn enough motion to beat it. The FID of unconditional samples is
-poor and is reported only to show the model was not simply memorising the condition. Two held-out scenes, one seed.
+poor in all seeds and is reported only to show the model was not simply memorising the condition. Two held-out
+scenes, three seeds (the sampling seed equals the training seed).
 
 **Track D.** SHARP's single-image Gaussians re-render the input view almost perfectly (identity pose), which confirms
 the pipeline; quality then falls steeply with the size of the true camera motion, from the next 12 Hz sweep (about half a metre
@@ -160,6 +201,9 @@ uv pip install --python .venv/bin/python "numpy<2" pyquaternion opencv-python-he
     huggingface_hub "transformers>=4.51" timm pytest ruff pillow tqdm scipy plotly nuscenes-devkit torchmetrics torch-fidelity
 uv pip install --python .venv/bin/python "git+https://github.com/apple/ml-depth-pro.git" \
     "git+https://github.com/facebookresearch/vggt.git" --no-build-isolation gsplat
+# MoGe-2: the moge package pins numpy>=2 and heavy extras, so install it and its geometry helper without deps
+uv pip install --python .venv/bin/python --no-deps "git+https://github.com/microsoft/MoGe.git" \
+    "utils3d_moge @ git+https://github.com/EasternJournalist/utils3d-moge.git@62f09d58509485564e24d5d9f6aac9ee9ebc0c37"
 uv pip install --python .venv/bin/python -e .
 export DATA_ROOT=/path/to/nuscenes   # v1.0-mini with samples/, sweeps/, v1.0-mini/
 
@@ -170,12 +214,16 @@ python scripts/scene_dynamics.py              # moving-object count per scene ->
 # Track A
 python scripts/eval_mono_depth.py --model depth_pro --save-pred-scene scene-0916
 python scripts/eval_mono_depth.py --model dav2_metric_outdoor_large --save-pred-scene scene-0916
+python scripts/eval_mono_depth.py --model moge2 --save-pred-scene scene-0916
+python scripts/check_moge2_focal.py            # wrapper vs library infer(), results/moge2_focal_check.json
 
 # Track C (ablation, 4 runs)
 python scripts/train_gs.py --variant random
 python scripts/train_gs.py --variant lidar
 python scripts/train_gs.py --variant lidar_depth --depth-weight 0.05 --depth-variant depth_pro
 python scripts/train_gs.py --variant lidar_depth --depth-weight 0.2  --depth-variant depth_pro
+# seeds 1 and 2 of the same four variants (outputs gs_<variant>_s<seed>.json, previews to a scratch dir)
+python scripts/train_gs.py --variant random --seed 1 --name random_s1 --no-video --img-dir logs/img_seeds --save-dir logs/gs_seeds
 
 # Track B
 python scripts/eval_multiview.py
@@ -185,6 +233,10 @@ python scripts/prep_nextframe.py
 python scripts/train_nextframe.py --mode fm --steps 12000
 python scripts/train_nextframe.py --mode regression --steps 12000
 python scripts/eval_nextframe.py --fid
+# seeds 1 and 2: same protocol, both trainings concurrently, then the evaluation with the same seed
+python scripts/train_nextframe.py --mode fm --steps 12000 --seed 1 --out data/nextframe/fm_s1.pt --out-json results/nextframe_train_fm_s1.json
+python scripts/train_nextframe.py --mode regression --steps 12000 --seed 1 --out data/nextframe/regression_s1.pt --out-json results/nextframe_train_regression_s1.json
+python scripts/eval_nextframe.py --fid --seed 1 --fm data/nextframe/fm_s1.pt --reg data/nextframe/regression_s1.pt --out-json results/synthesis_nextframe_s1.json --grid logs/img_seeds/nextframe_grid_s1.jpg
 # DDP code path (2 processes on one GPU, gloo, smoke only): bash scripts/ddp_smoke.sh
 
 # Track D (needs third_party/ml-sharp installed with --no-deps and its checkpoint in ~/.cache/torch/hub/checkpoints)
@@ -197,7 +249,8 @@ python scripts/build_space.py                  # -> site/index.html (+ assets); 
 ```
 
 `scripts/run_gpu_queue.sh` runs the GPU jobs of Tracks A, C, B and E one after another so that the reported
-timings come from an otherwise idle GPU.
+timings come from an otherwise idle GPU; `scripts/run_seeds_queue.sh` does the same for the MoGe-2 run and the
+seed-1 and seed-2 runs of Tracks C and E.
 
 ## Layout
 
@@ -216,11 +269,14 @@ site/             generated static site for a Hugging Face static Space (not upl
 - nuScenes-mini only: 10 scenes, 404 keyframes, one city pair (Boston, Singapore); no claim beyond this data.
 - Sparse LiDAR GT: about 3,000-4,500 points per image, biased towards the near range (most points are below 20 m);
   LiDAR-camera time offsets and moving objects add GT noise that no model can fix.
-- Zero-shot models are used with their public weights and default preprocessing. Depth Pro and DA-V2 were not
+- Zero-shot models are used with their public weights and default preprocessing. Depth Pro, DA-V2 and MoGe-2 were not
   trained on nuScenes; DA-V2 metric outdoor is fine-tuned on Virtual KITTI, so its scale reflects KITTI's camera.
-- 3DGS: one scene, one seed, fixed step budget, images at half resolution, static-scene assumption, no
-  exposure or sky modelling; the held-out views are interpolations between train timestamps 0.5 s apart.
+  MoGe-2 is scored without its validity mask so that all three models see the same LiDAR pixels; its sky-like
+  predictions are clipped to 80 m like the others (the clipped fraction is in the tables).
+- 3DGS: one scene, three seeds at the 7k-step budget and one seed at 15k, images at half resolution, static-scene
+  assumption, no exposure or sky modelling; the held-out views are interpolations between train timestamps 0.5 s apart.
 - VGGT input is resized to 518x294 and its depth is upsampled to the LiDAR pixels; it predicts relative scale only.
-- Track E models are tiny and trained for a fixed number of steps; sampling is plain Euler with 50 steps; one sample
-  per test pair; FID (if present) is over a few hundred 128x64 frames and is only indicative.
+- Track E models are tiny and trained for a fixed wall-clock budget; sampling is plain Euler with 50 steps; one sample
+  per test pair; the seed spread mixes training and sampling variance (the sampling seed equals the training seed);
+  FID (if present) is over a few hundred 128x64 frames and is only indicative.
 - SHARP assumes the principal point at the image centre (nuScenes' is 16 px off) and receives the true focal length.

@@ -41,6 +41,8 @@ def main() -> None:
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--fid", action="store_true")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--out-json", default="results/synthesis_nextframe.json")
+    ap.add_argument("--grid", default="docs/img/nextframe_grid.jpg")
     args = ap.parse_args()
     device = "cuda"
     frames, _, test_idx = load_pairs(args.data)
@@ -122,8 +124,9 @@ def main() -> None:
             out["fid_unconditional"] = {"value": None, "note": f"not measured: {type(e).__name__}: {e}"}
     else:
         out["fid_unconditional"] = {"value": None, "note": "not measured (run with --fid)"}
-    Path("results").mkdir(exist_ok=True)
-    Path("results/synthesis_nextframe.json").write_text(json.dumps(out, indent=1))
+    out["seed"] = args.seed
+    Path(args.out_json).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out_json).write_text(json.dumps(out, indent=1))
     # grid: row 1 real next frames, row 2 generated (with the current frame on the left as reference)
     rows = []
     for imgs in (grid_real, grid_gen):
@@ -131,9 +134,9 @@ def main() -> None:
     grid = np.concatenate(rows, axis=0)
     cur = np.concatenate(list(grid_cur), axis=1)
     full = np.concatenate([cur, grid], axis=0)
-    Path("docs/img").mkdir(parents=True, exist_ok=True)
+    Path(args.grid).parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(full).resize((full.shape[1] * 2, full.shape[0] * 2), Image.NEAREST).save(
-        "docs/img/nextframe_grid.jpg", "JPEG", quality=88
+        args.grid, "JPEG", quality=88
     )
     print(json.dumps({k: {m: round(v["mean"], 4) for m, v in d.items()} for k, d in out["methods"].items()}))
     print("DONE")
