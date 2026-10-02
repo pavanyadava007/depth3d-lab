@@ -279,4 +279,4 @@ site/             generated static site for a Hugging Face static Space (not upl
 - Track E models are tiny and trained for a fixed wall-clock budget; sampling is plain Euler with 50 steps; one sample
   per test pair; the seed spread mixes training and sampling variance (the sampling seed equals the training seed);
   FID (if present) is over a few hundred 128x64 frames and is only indicative.
-- SHARP assumes the principal point at the image centre (nuScenes' is 16 px off) and receives the true focal length.
+- SHARP assumes the principal point at the image centre (the nuScenes principal points are tens of pixels off-centre, see results/camera_intrinsics.json) and receives the true focal length.

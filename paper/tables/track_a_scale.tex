@@ -1,0 +1,16 @@
+\footnotesize\renewcommand{\arraystretch}{0.92}
+\begin{tabular}{llrrrrrr}
+\toprule
+model & quantity & F & FL & FR & B & BL & BR \\
+\midrule
+nuScenes calibration & true focal [px] & 1266 & 1273 & 1261 & 809 & 1257 & 1260 \\
+\midrule
+Depth Pro & median scale GT/pred & 1.122 & 1.298 & 1.212 & 0.943 & 1.195 & 1.249 \\
+ & pred/true focal & 1.046 & 1.039 & 1.092 & 1.276 & 1.087 & 1.123 \\
+Depth Pro (true f) & median scale GT/pred & 1.165 & 1.342 & 1.287 & 1.169 & 1.267 & 1.390 \\
+DA-V2 outdoor L & median scale GT/pred & 0.728 & 0.685 & 0.757 & 0.474 & 0.677 & 0.765 \\
+MoGe-2 & median scale GT/pred & 1.012 & 0.993 & 0.995 & 0.855 & 0.982 & 0.989 \\
+ & pred/true focal & 0.958 & 0.974 & 0.998 & 1.225 & 1.010 & 0.992 \\
+MoGe-2 (true f) & median scale GT/pred & 0.984 & 0.970 & 0.984 & 0.923 & 0.988 & 0.974 \\
+\bottomrule
+\end{tabular}

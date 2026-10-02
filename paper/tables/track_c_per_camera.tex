@@ -1,0 +1,15 @@
+\footnotesize\renewcommand{\arraystretch}{0.92}
+\begin{tabular}{lrrrrrr}
+\toprule
+variant & B & BL & BR & F & FL & FR \\
+\midrule
+random init (7k) & 16.05 & 13.15 & 13.06 & 13.03 & 12.57 & 12.51 \\
+LiDAR init (7k) & 18.08 & 14.74 & 16.77 & 17.44 & 14.23 & 16.46 \\
+LiDAR init + depth (w=0.05) (7k) & 18.83 & 16.06 & 17.35 & 18.18 & 16.95 & 17.89 \\
+LiDAR init + depth (w=0.2) (7k) & 20.54 & 17.17 & 18.49 & 18.68 & 17.89 & 18.28 \\
+random init (15k) & 12.66 & 12.55 & 12.91 & 12.29 & 11.85 & 11.92 \\
+LiDAR init (15k) & 17.18 & 12.28 & 15.74 & 13.82 & 11.22 & 14.02 \\
+LiDAR init + depth (w=0.05) (15k) & 18.52 & 15.36 & 17.34 & 17.89 & 15.31 & 17.24 \\
+LiDAR init + depth (w=0.2) (15k) & 20.54 & 16.72 & 17.99 & 19.04 & 17.37 & 18.27 \\
+\bottomrule
+\end{tabular}

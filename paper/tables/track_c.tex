@@ -1,0 +1,16 @@
+\footnotesize\renewcommand{\arraystretch}{0.92}
+\begin{tabular}{llrrrrrrrrrr}
+\toprule
+variant & steps & PSNR & PSNR, seeds & LPIPS, seeds & SSIM & LPIPS & init & final & train min & ms/view & PSNR train \\
+\midrule
+random init & 7k & 13.40 $\pm$ 3.78 & 13.78 $\pm$ 0.42 (n=3) & 0.744 $\pm$ 0.012 & 0.521 & 0.758 & 200,000 & 206,811 & 1.5 & 1.9 & 20.01 \\
+LiDAR init & 7k & 16.29 $\pm$ 2.75 & 15.91 $\pm$ 0.37 (n=3) & 0.590 $\pm$ 0.009 & 0.587 & 0.580 & 300,000 & 576,114 & 2.9 & 3.5 & 21.24 \\
+LiDAR init + depth (w=0.05) & 7k & 17.54 $\pm$ 2.66 & 17.46 $\pm$ 0.10 (n=3) & 0.522 $\pm$ 0.003 & 0.599 & 0.525 & 300,000 & 674,323 & 3.3 & 3.9 & 21.66 \\
+LiDAR init + depth (w=0.2) & 7k & 18.51 $\pm$ 2.77 & 18.43 $\pm$ 0.07 (n=3) & 0.498 $\pm$ 0.001 & 0.608 & 0.497 & 300,000 & 736,227 & 3.5 & 4.2 & 21.48 \\
+\midrule
+random init & 15k & 12.36 $\pm$ 2.45 & not measured & not measured & 0.512 & 0.729 & 200,000 & 427,153 & 4.4 & 2.6 & 20.61 \\
+LiDAR init & 15k & 14.04 $\pm$ 3.42 & not measured & not measured & 0.522 & 0.605 & 300,000 & 948,796 & 8.4 & 5.0 & 22.44 \\
+LiDAR init + depth (w=0.05) & 15k & 16.94 $\pm$ 2.79 & not measured & not measured & 0.574 & 0.469 & 300,000 & 1,337,190 & 11.6 & 7.2 & 23.43 \\
+LiDAR init + depth (w=0.2) & 15k & 18.32 $\pm$ 2.63 & not measured & not measured & 0.584 & 0.417 & 300,000 & 1,516,755 & 12.8 & 8.3 & 23.32 \\
+\bottomrule
+\end{tabular}

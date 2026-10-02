@@ -1,0 +1,10 @@
+\footnotesize\renewcommand{\arraystretch}{0.92}
+\begin{tabular}{lrrrrr}
+\toprule
+target pose & PSNR [95\% CI] & SSIM [95\% CI] & LPIPS [95\% CI] & coverage & motion [m] \\
+\midrule
+identity (input pose) & 41.62 [40.69, 42.52] & 0.991 [0.987, 0.995] & 0.017 [0.014, 0.020] & 1.00 & 0.00 \\
+next 12 Hz sweep & 26.80 [24.70, 28.87] & 0.773 [0.683, 0.858] & 0.096 [0.071, 0.122] & 1.00 & 0.48 \\
+next keyframe & 20.42 [18.71, 22.09] & 0.592 [0.501, 0.684] & 0.231 [0.179, 0.290] & 1.00 & 2.82 \\
+\bottomrule
+\end{tabular}

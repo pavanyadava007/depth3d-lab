@@ -1,0 +1,667 @@
+\documentclass[10pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{adjustbox}
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=1.4em}
+\captionsetup{font=small,labelfont=bf}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.9}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.85}
+\setcounter{topnumber}{3}
+\setcounter{totalnumber}{5}
+
+\graphicspath{{figs/}{../docs/img/}}
+\input{numbers.tex}
+\newcommand{\fittable}[1]{\adjustbox{max width=\textwidth,center}{\input{#1}}}
+\newcommand{\gpu}{\GPUname}
+
+\title{Scale, Shape and Synthesis: a Reproducible Single-GPU Study of Zero-Shot Depth,
+Feed-Forward Reconstruction, Gaussian Splatting and Next-Frame Synthesis on nuScenes-mini}
+\author{Pavan Yadav Annappa\\
+Friedrich-Alexander-Universitaet Erlangen-Nuernberg\\
+\texttt{pavanyadava07@gmail.com}\\[2pt]
+\small Code: \url{https://github.com/pavanyadava007/depth3d-lab}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We run four kinds of pretrained image-to-3D models on the same frames of one public driving data set,
+nuScenes-mini (10 scenes, \GTkeyframes{} keyframes, six cameras and a LiDAR), on a single \gpu{} GPU. The aim
+is to see how far geometry estimated from images can be trusted and at which step it breaks down. Three
+zero-shot monocular depth models (Depth Pro, Depth Anything V2 and MoGe-2) get the shape of a driving scene
+about right but miss its metric scale to very different degrees. Scaling each image by its median brings
+Depth Pro's AbsRel against LiDAR from \DPabsrelRaw{} down to \DPabsrelScaled{}, Depth Anything V2's from
+\DAVabsrelRaw{} to \DAVabsrelScaled{} and MoGe-2's from \MOGEabsrelRaw{} to \MOGEabsrelScaled{}. Depth Pro
+gets worse when it is given the true focal length, which we did not expect. MoGe-2 gets better. VGGT, a
+feed-forward multi-view model, has no metric scale, but with one scale per sequence it matches Depth Pro on
+the same LiDAR pixels (paired AbsRel difference \BTemppairedSeq{} on five-frame windows) and its relative
+rotations are accurate (median \BTemprotMedian{} degrees). The scale-aligned monocular depth also helps
+3D Gaussian Splatting from sparse views. LiDAR initialisation gains \GSdeltaLidarRandom{} dB of held-out
+PSNR over random initialisation, and depth supervision adds another \GSdeltaDepthHiPsnr{} dB. Synthesis is
+harder. Single-image Gaussians from SHARP reproduce the input view at \SharpIdpsnr{} dB but drop to
+\SharpKeypsnr{} dB at the true pose of the next keyframe, and a small flow-matching model for next-frame
+prediction is perceptually further from the real next frame than a plain copy of the current one (LPIPS
+\NFFmlpips{} versus \NFCopylpips{} at \NFdtMedian{} s spacing). The study is small on purpose, with one data
+split, one machine and a few seeds. All tables and numbers are written by scripts that we release.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Pretrained models can now estimate depth from one image, recover cameras and depth from a handful of
+images, and render new views from a single photograph. Most of them are evaluated on their own benchmarks,
+which makes it hard to see how they relate to each other. In this report we put several of them on the same
+frames of one driving data set and ask, at each stage, how much of the geometry they provide can be relied
+on. We use nuScenes-mini \citep{caesar2020nuscenes}, a public split of ten 20-second scenes recorded with
+six cameras and a LiDAR, and we measure everything on one \gpu{} GPU.
+
+The work is organised in five tracks, and the later ones reuse results of the earlier ones. Track A
+compares monocular metric depth with LiDAR. Track B runs feed-forward multi-view reconstruction on the same
+pixels. Track C trains Gaussian Splatting with the scale-aligned depth maps from Track A as extra
+supervision. The last two tracks are about synthesis. In Track D we render single-image Gaussians at a true
+future pose, and in Track E we train a small conditional flow-matching model to predict the next frame.
+
+\paragraph{Contributions.}
+\begin{itemize}
+  \item We split the error of zero-shot metric depth into a raw and a median-scaled part on all \DPimages{}
+        nuScenes-mini images, broken down by camera, camera group and depth bin. Depth Pro and MoGe-2 are
+        also run with the true focal length, and our Depth Pro code is checked against the library's own
+        inference path (Section~\ref{sec:track_a}).
+  \item We compare VGGT and Depth Pro on the same LiDAR pixels of the same reference images, with three
+        ways of aligning VGGT and bootstrap confidence intervals over sequences. Relative pose errors are
+        measured against nuScenes ego poses (Section~\ref{sec:track_b}).
+  \item We run a 3D Gaussian Splatting ablation on the most static scene, with random or LiDAR
+        initialisation and with or without monocular depth supervision, at two step budgets and scored on
+        held-out timestamps (Section~\ref{sec:track_c}).
+  \item We measure how well single-image Gaussians from SHARP re-render the true next pose, and how a
+        conditional flow-matching next-frame model compares with a copy-frame baseline
+        (Sections~\ref{sec:track_d} and~\ref{sec:track_e}).
+  \item Every table and every number in the text is written by a script from the measured json files, so
+        a rerun updates the paper. The scope is limited to nuScenes-mini, one \gpu{}, and \GSnSeeds{} seeds
+        for 3DGS and \NFnSeeds{} for the next-frame models (Section~\ref{sec:limits}).
+\end{itemize}
+
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Monocular metric depth.}
+Depth Pro \citep{bochkovskii2025depthpro} predicts a canonical inverse depth and a field of view and
+combines the two into metric depth, so it needs no camera metadata. If the focal length is known it can be
+passed in and then replaces the model's estimate. Depth Anything V2 \citep{yang2024dav2} is a
+relative-depth model that also comes in metric variants fine-tuned on metric labels. We use the outdoor
+metric Large model, which was fine-tuned on Virtual KITTI. MoGe-2 \citep{wang2025moge2} adds a metric scale
+to the affine-invariant point maps of MoGe. Our evaluation protocol follows the KITTI convention
+\citep{eigen2014depth,geiger2012kitti}.
+
+\paragraph{Feed-forward multi-view reconstruction.}
+DUSt3R \citep{wang2024dust3r} regresses point maps for image pairs and aligns them globally. VGGT
+\citep{wang2025vggt} replaces this with a single transformer that predicts cameras, depth and point maps
+for one to many views in one pass. Neither has a metric scale. We align VGGT in three ways: with one scale
+per sequence, with one scale per image, and with a similarity transform fitted to its camera centres
+\citep{umeyama1991}.
+
+\paragraph{Gaussian Splatting.}
+3D Gaussian Splatting \citep{kerbl2023gs} optimises anisotropic Gaussians that are normally initialised
+from an SfM point cloud. We use the gsplat rasteriser and its default densification strategy
+\citep{ye2025gsplat} with our own training loop. LiDAR points take the place of the SfM points, and a depth
+loss against the aligned monocular maps can be switched on.
+
+\paragraph{Synthesis.}
+SHARP \citep{mescheder2025sharp} predicts metric 3D Gaussians from one image in a single forward pass. We
+render them at the true relative pose of later frames. Our next-frame model is trained with conditional
+flow matching \citep{lipman2023flow}. Image quality is reported as PSNR, SSIM \citep{wang2004ssim} and
+LPIPS \citep{zhang2018lpips}.
+
+\section{Data and protocol}
+\label{sec:protocol}
+
+\paragraph{Data.}
+nuScenes v1.0-mini \citep{caesar2020nuscenes} contains 10 scenes from Boston and Singapore,
+\GTkeyframes{} keyframes at 2 Hz, six 1600$\times$900 cameras and a 32-beam LiDAR, plus 12 Hz camera
+sweeps without annotations. nuScenes is released under CC BY-NC-SA 4.0. Our repository therefore ships no
+images or point clouds, only sample tokens, metrics and small renders of our own outputs. The nuScenes
+frames in the figures of this report are used under that licence, with attribution to the nuScenes authors.
+Scene statistics used for scene selection are in Table~\ref{tab:scene_dynamics}.
+
+\paragraph{LiDAR ground truth (Tracks A and B).}
+For every keyframe and camera the keyframe LiDAR sweep is transformed through LiDAR to ego (at the LiDAR
+timestamp), ego to world, world to ego (at the camera timestamp) and ego to camera, using the
+\texttt{calibrated\_sensor} and \texttt{ego\_pose} records. Points with $1\,\mathrm{m} < z < 80\,\mathrm{m}$
+that fall inside the image are kept; when several points land on one pixel the smallest depth wins
+(z-buffering). This gives \GTimages{} sparse depth images with \GTptsMin{} to \GTptsMax{} points per image
+depending on the camera, a median depth between \GTmedianZmin{} and \GTmedianZmax{} m and
+\GTfracNearMin{} to \GTfracNearMax\% of the points below 20 m (Table~\ref{tab:lidar_gt}). The projection
+takes \GTwallSeconds{} s on the CPU.
+
+\begin{table}[t]
+\centering
+\begin{subtable}[t]{0.56\textwidth}
+\centering
+\adjustbox{max width=\linewidth,valign=t}{\input{tables/lidar_gt.tex}}
+\caption{LiDAR ground truth per camera: points per image, median depth, share of points per depth bin.}
+\label{tab:lidar_gt}
+\end{subtable}\hfill
+\begin{subtable}[t]{0.41\textwidth}
+\centering
+\adjustbox{max width=\linewidth,valign=t}{\input{tables/scene_dynamics.tex}}
+\caption{Moving annotations per scene (box velocity above \DynVelThreshold{} m/s), sorted; \GSscene{} is the 3DGS scene.}
+\label{tab:scene_dynamics}
+\end{subtable}
+\caption{Data statistics of nuScenes-mini used by the protocol.}
+\label{tab:data}
+\end{table}
+
+\paragraph{Metrics and clipping.}
+Predictions are read at the LiDAR pixels, clipped to $[1, 80]$ m and scored with AbsRel, SqRel, RMSE,
+RMSE$_{\log}$ and the threshold accuracies $\delta_k$ (fraction with $\max(d/\hat d, \hat d/d) < 1.25^k$).
+The metrics are accumulated over all points and not averaged per image. We clip because in a first run
+without clipping a handful of sky-like predictions, which Depth Pro clamps at 10 km, dominated the squared
+metrics. The fraction of LiDAR pixels whose unclipped prediction exceeds 80 m is reported next to the
+metrics. ``Raw'' is the model's metric output. ``Median-scaled'' multiplies each image by
+$\mathrm{median}(d_{\mathrm{LiDAR}})/\mathrm{median}(\hat d)$ before scoring, so what remains is shape
+error only. The ratio of the two tells how much of the raw error a single scalar per image removes.
+Confidence intervals are 95\% percentile bootstrap intervals (2000 resamples, fixed seed) over images,
+sequences or test pairs. Paired intervals are computed over per-item differences, and we report them
+together with the fraction of items in which the first method is lower.
+
+\paragraph{Track A models.}
+Depth Pro \citep{bochkovskii2025depthpro} runs in half precision at its native 1536$\times$1536 input.
+One forward pass gives both the own-focal depth and the known-focal depth, because the canonical inverse
+depth is scaled by $W/f$, where $f$ is either the predicted or the true $f_x$ in pixels. We checked the
+known-focal path against the library's own \texttt{infer(f\_px)} on \FocalCheckDevice{} and the maximum
+absolute difference is \FocalCheckMaxDiff{} m. Depth Anything V2 metric outdoor Large \citep{yang2024dav2}
+runs through transformers with its default preprocessing. MoGe-2 \citep{wang2025moge2} is run with its own
+focal estimate and with the true focal length. Timing is the median model time per image on the \gpu{},
+including pre- and post-processing and excluding JPEG decoding.
+
+\paragraph{Track B alignment.}
+VGGT-1B \citep{wang2025vggt} runs in bfloat16 on images resized to 518$\times$294, and its depth is
+upsampled bilinearly to the LiDAR pixels. We use two settings. The first is the six-camera rig at one
+timestamp with CAM\_FRONT as reference, which has wide baselines and little overlap. The second is five
+consecutive CAM\_FRONT keyframes with the centre frame as reference, which is forward motion. Each setting
+has \BRignSeq{} sequences, four per scene, spread over the scene. Since VGGT has no metric scale, its
+reference-view depth is aligned in three ways: with one scale per sequence (the median estimator applied to
+the LiDAR pixels of all views of the sequence), with a per-image median scale, and with the scale of a
+similarity transform fitted between its predicted camera centres and the nuScenes camera centres
+\citep{umeyama1991}. Depth Pro runs on the same reference image, so the paired comparison uses identical
+pixels. Relative poses between the reference and each other view are compared with nuScenes ego poses and
+calibration. Rotation error is computed over all pairs. Translation direction error is computed only over
+pairs whose true baseline exceeds \BTempminBaseline{} m, because the direction of a zero vector is
+undefined, and the number of excluded stationary pairs is reported.
+
+\paragraph{Track C scene and split.}
+We count moving annotations per scene with the devkit box velocity (threshold \DynVelThreshold{} m/s) and
+pick the scene with the fewest, \GSscene{} (\GSsceneMoving{} of \GSsceneAnnotations{} annotations,
+\GSsceneFracMoving\%, Table~\ref{tab:scene_dynamics}). All six cameras of every keyframe are used at half
+resolution (\GSimageW$\times$\GSimageH). The held-out set is every 8th timestamp (offset 4) with all six
+cameras, which gives \GStestViews{} views, and the remaining \GStrainViews{} views are used for training.
+Random initialisation draws uniform points in a box around the trajectory and gives them random colours.
+LiDAR initialisation aggregates the LiDAR sweeps of the training timestamps in the world frame, colours the
+points by projection, and voxel-downsamples and caps them. The third kind of variant adds a depth loss to
+LiDAR initialisation. This loss is the relative L1 between the rendered expected depth and the cached Depth
+Pro map of the view, scale-aligned per image to LiDAR as in Track A. It is applied on pixels with
+accumulated alpha above 0.5 and target depth in $(0.5, 80)$ m, with a weight of 0.05 or 0.2. The
+photometric loss is $0.8\,L_1 + 0.2\,(1 - \mathrm{SSIM})$, and gsplat's \texttt{DefaultStrategy} densifies
+from step 500 to half the budget. We train for 7000 and for 15000 steps and report per-view PSNR, SSIM and
+LPIPS (AlexNet) on the held-out views. The 7000-step runs are repeated with \GSnSeeds{} seeds.
+
+\paragraph{Track D coverage masking.}
+SHARP \citep{mescheder2025sharp} predicts Gaussians from one CAM\_FRONT keyframe per scene. It receives the
+true focal length and assumes the principal point at the image centre. We render the Gaussians with SHARP's
+own gsplat-based renderer at three poses: the identity pose, the true relative pose of the next 12 Hz sweep,
+and the true relative pose of the next keyframe (\SharpDtKeyframe{} s later). The poses come from nuScenes
+ego poses and calibration. Renders are compared with the real frame at \SharpEvalW$\times$\SharpEvalH. PSNR
+is computed on pixels with alpha above 0.5 and SSIM is averaged over the same pixels. For LPIPS the
+uncovered pixels are filled from the real frame, which makes LPIPS slightly optimistic when coverage is
+low, so we report coverage as well.
+
+\paragraph{Track E data and budget.}
+All CAM\_FRONT keyframes and sweeps (\NFframes{} frames) are resized to \NFw$\times$\NFh{} and paired
+with their successor inside the scene (median spacing \NFdtMedian{} s). Scenes \NFholdoutScenes{} are held
+out, which gives \NFtrainPairs{} training and \NFtestPairs{} test pairs. A \NFFmparams{}M-parameter UNet
+(channels 64, 128, 256, attention at the coarsest level) receives the noisy target and the current frame
+and predicts the flow-matching velocity for the linear path $x_t = (1-t)x_0 + t x_1$
+\citep{lipman2023flow}, with 10\% condition dropout. The same UNet with zero noise and $t=0$ is the L2
+regression baseline. Both are trained with AdamW (batch \NFFmbatch, learning rate \NFFmlr, EMA 0.999) under
+a \NFFmmaxMinutes-minute wall-clock cap while sharing the GPU with each other, so only \NFFmsteps{} of the
+requested \NFFmstepsRequested{} steps were done. For evaluation we draw one \NFsampler{} sample per test
+pair and report PSNR and LPIPS against the real next frame, next to the copy-current-frame baseline. The
+distributed code path was smoke-tested with \DDPworld{} gloo ranks on the single GPU for \DDPsteps{} steps.
+This is not a multi-GPU result.
+
+\section{Results}
+\label{sec:results}
+
+\subsection{Track A: monocular metric depth versus LiDAR}
+\label{sec:track_a}
+
+\begin{table}[t]
+\centering
+\caption{Track A on all \DPimages{} images (points in $[1, 80]$ m). Raw is the metric output; median-scaled applies one scalar per image. ms/img is the median model time per 1600$\times$900 image on the \gpu{}; ``true f'' feeds the true focal length.}
+\label{tab:track_a}
+\fittable{tables/track_a_main.tex}
+\end{table}
+
+Table~\ref{tab:track_a} gives the overall numbers. For all three models part of the raw metric error is a
+scale error per image, but the size of that part differs a lot. Median scaling lowers Depth Pro's AbsRel
+from \DPabsrelRaw{} to \DPabsrelScaled{} (\DPscaleShare\% of the raw error) and raises its $\delta_1$ from
+\DPdOneRaw{} to \DPdOneScaled. For Depth Anything V2 the drop is from \DAVabsrelRaw{} to \DAVabsrelScaled{}
+(\DAVscaleShare\%), and for MoGe-2 from \MOGEabsrelRaw{} to \MOGEabsrelScaled{} (\MOGEscaleShare\%). MoGe-2
+is the most accurate of the three both before and after scaling. After scaling, Depth Pro is slightly ahead
+of Depth Anything V2, although their raw errors are far apart. The per-image bootstrap means agree with the
+point-weighted values (Depth Pro \DPabsrelRawCI{} raw and \DPabsrelScaledCI{} scaled, Depth Anything V2
+\DAVabsrelRawCI{} and \DAVabsrelScaledCI{}, MoGe-2 \MOGEabsrelRawCI{} and \MOGEabsrelScaledCI{}). Only a
+small fraction of LiDAR pixels has an unclipped prediction beyond 80 m: \DPfracAboveMax\% for Depth Pro,
+\DAVfracAboveMax\% for Depth Anything V2 and \MOGEfracAboveMax\% for MoGe-2. On the \gpu{} the median time
+per image is \DPmsPerImage{} ms for Depth Pro, \DAVmsPerImage{} ms for Depth Anything V2 and
+\MOGEmsPerImage{} ms for MoGe-2.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}[t]{0.49\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{scale_per_camera.pdf}
+  \caption{Median per-image scale factor GT/pred per camera (whiskers p10 to p90; dashed line: 1.0, already metric).}
+  \label{fig:scale}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.49\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{absrel_bins.pdf}
+  \caption{AbsRel per depth bin, raw and median-scaled. The two Depth Pro variants coincide after scaling by construction.}
+  \label{fig:bins}
+\end{subfigure}
+\caption{Track A: where the metric scale is off (a) and how the error changes with distance (b). Cameras: F front, FL/FR front left/right, B back, BL/BR back left/right.}
+\label{fig:track_a}
+\end{figure}
+
+\paragraph{Scale and focal length.}
+Figure~\ref{fig:scale} and Table~\ref{tab:track_a_scale} show the median scale factor per camera. With its
+own focal estimate, Depth Pro predicts depths that are too near on the five long-focal cameras (scale
+\DPscaleNonBackMin{} to \DPscaleNonBackMax{}) and close to metric on the back camera (\DPscaleBack). Its
+focal estimate is above the true nuScenes focal on every camera, by a factor of \DPfocalRatioMin{} to
+\DPfocalRatioMax. The largest ratio is on the back camera, whose true focal (\DPfocalTrueBack{} px) is
+shorter than that of the other five (about \DPfocalTrueFront{} px). We expected the true focal to help. It
+does not: AbsRel rises from \DPabsrelRaw{} to \GTFabsrelRaw{} and $\delta_1$ falls from \DPdOneRaw{} to
+\GTFdOneRaw, while the median-scaled numbers are identical by construction. The scale column explains why.
+With the true focal the scale factor is similar on all six cameras (\GTFscaleMin{} to \GTFscaleMax), which
+means that the model's canonical depth is consistently too near on this data and that its over-estimated
+focal cancels part of that. MoGe-2 behaves the way one would expect. Its focal estimate is between
+\MOGEfocalRatioMin{} and \MOGEfocalRatioMax{} times the true focal, its scale factors lie between
+\MOGEscaleMin{} and \MOGEscaleMax, and the true focal lowers its raw AbsRel from \MOGEabsrelRaw{} to
+\MOGEGTFabsrelRaw. Depth Anything V2 metric outdoor, fine-tuned on Virtual KITTI, predicts too far on every
+camera (scale \DAVscaleMin{} to \DAVscaleMax, lowest on the back camera with \DAVscaleBack).
+
+\begin{table}[t]
+\centering
+\begin{subtable}[t]{\textwidth}
+\centering
+\adjustbox{max width=0.8\textwidth}{\input{tables/track_a_scale.tex}}
+\caption{Median per-image scale factor GT/pred and focal estimate over true focal. A scale of 1.0 means the metric output is already on the LiDAR scale.}
+\label{tab:track_a_scale}
+\end{subtable}\\[4pt]
+\begin{subtable}[t]{\textwidth}
+\centering
+\adjustbox{max width=0.8\textwidth}{\input{tables/track_a_per_camera.tex}}
+\caption{AbsRel raw / median-scaled.}
+\label{tab:track_a_per_camera}
+\end{subtable}
+\caption{Track A per camera (F front, FL/FR front left/right, B back, BL/BR back left/right).}
+\label{tab:track_a_cam}
+\end{table}
+
+\paragraph{Cameras and distance.}
+The front camera is the easiest for all three models, raw and scaled, and after scaling the side cameras
+are the hardest (Tables~\ref{tab:track_a_groups} and~\ref{tab:track_a_per_camera}). Depth Pro has a scaled
+AbsRel of \DPabsrelFrontScaled{} on the front group and \DPabsrelSideScaled{} on the side group, Depth
+Anything V2 has \DAVabsrelFrontScaled{} and \DAVabsrelSideScaled{}, and MoGe-2 has \MOGEabsrelFrontScaled{}
+and \MOGEabsrelSideScaled. Before scaling the picture is mixed. Depth Pro is again worst on the side group
+(\DPabsrelSideRaw{} against \DPabsrelFrontRaw{} on the front), but Depth Anything V2 and MoGe-2 are worst
+on the back camera (\DAVabsrelBackRaw{} and \MOGEabsrelBackRaw), where their scale is furthest off. Errors
+grow with distance (Figure~\ref{fig:bins}, Table~\ref{tab:track_a_bins}). Depth Pro's scaled AbsRel is
+\DPabsrelNearScaled{} below 20 m, \DPabsrelMidScaled{} between 20 and 40 m and \DPabsrelFarScaled{} beyond
+40 m, with RMSE from \DPrmseNearScaled{} to \DPrmseFarScaled{} m. The raw error of Depth Anything V2 is the
+one exception. It falls with distance (\DAVabsrelNearRaw{} to \DAVabsrelFarRaw) because a global
+over-estimate of depth hurts most where the true depth is small. After scaling it grows with distance like
+the others.
+
+\begin{table}[t]
+\centering
+\begin{subtable}[t]{0.49\textwidth}
+\centering
+\adjustbox{max width=\linewidth,valign=t}{\input{tables/track_a_groups.tex}}
+\caption{Per camera group (front: F; side: FL, FR, BL, BR; back: B).}
+\label{tab:track_a_groups}
+\end{subtable}\hfill
+\begin{subtable}[t]{0.49\textwidth}
+\centering
+\adjustbox{max width=\linewidth,valign=t}{\input{tables/track_a_depth_bins.tex}}
+\caption{Per LiDAR depth bin (RMSE in m).}
+\label{tab:track_a_bins}
+\end{subtable}
+\caption{Track A broken down by camera group and by depth bin, raw and median-scaled, with the number of LiDAR points.}
+\label{tab:track_a_breakdown}
+\end{table}
+
+\subsection{Track B: feed-forward multi-view reconstruction versus the monocular prior}
+\label{sec:track_b}
+
+\begin{table}[t]
+\centering
+\caption{Track B: AbsRel, $\delta_1$ and RMSE on the LiDAR pixels of the reference view, mean over \BRignSeq{} sequences per setting with 95\% bootstrap intervals. VGGT and Depth Pro are scored on identical pixels.}
+\label{tab:track_b}
+\adjustbox{max width=0.85\textwidth,center}{\input{tables/track_b.tex}}
+\end{table}
+
+VGGT is not metric. Its raw depth is off by a large constant factor (median sequence scale
+\BRigscaleSeqMedian{} for the rig and \BTempscaleSeqMedian{} for the temporal window, raw AbsRel
+\BRigVggtRawabsrel), so we only compare after alignment (Table~\ref{tab:track_b}). With one scale per
+sequence VGGT reaches an AbsRel of \BRigVggtSeqabsrel{} on the rig and \BTempVggtSeqabsrel{} on the
+temporal window. Depth Pro with its per-image median scale reaches \BRigDpImgabsrel{} and
+\BTempDpImgabsrel{} on the same pixels. The paired difference, VGGT minus Depth Pro so that negative values
+favour VGGT, is \BRigpairedSeq{} for the rig and \BTemppairedSeq{} for the temporal window, and both
+intervals include zero. If VGGT also gets a per-image scale, the differences are \BRigpairedImg{} and
+\BTemppairedImg. VGGT is ahead on average and in \BTempfracVggtLower\% of the temporal sequences, while the
+rig is a tie (VGGT lower in \BRigfracVggtLower\%). On this data, then, multi-view context does not beat a
+good monocular prior by a margin that a sample of this size can resolve. The monocular reference in this
+track is Depth Pro. MoGe-2, which is more accurate than Depth Pro in Track A, was not run on these
+sequences, so the comparison is not against the best monocular model we tested. Scaling VGGT with the similarity
+transform fitted to its camera centres works much worse (\BRigVggtSimabsrel{} and \BTempVggtSimabsrel).
+The baselines are short (mean \BRigbaselineMean{} m inside the rig, \BTempbaselineMean{} m between
+keyframes), so the fitted scale is noisy.
+
+\begin{table}[t]
+\centering
+\adjustbox{max width=\textwidth}{\input{tables/track_b_pose.tex}}
+\caption{Relative pose of VGGT against nuScenes ego poses and calibration: rotation error and translation direction error in degrees. Translation direction is evaluated only where the true baseline exceeds \BTempminBaseline{} m; ``excluded'' counts the stationary pairs; ``seq. scale'' is the median sequence scale factor.}
+\label{tab:track_b_pose}
+\end{table}
+
+\paragraph{Poses.}
+Table~\ref{tab:track_b_pose} gives the relative pose errors. On the temporal window VGGT's relative
+rotations are accurate (median \BTemprotMedian{} degrees, mean \BTemprotMean) and the translation
+directions are good too (median \BTemptransMedian{} degrees over the \BTempnPairsBaseline{} moving pairs,
+with \BTempnPairsExcluded{} stationary pairs excluded). On the six-camera rig the rotations are off by
+several degrees (median \BRigrotMedian, mean \BRigrotMean) and the translation directions are poor (median
+\BRigtransMedian{} degrees). The nuScenes cameras overlap very little, so this is not surprising.
+
+\subsection{Track C: 3D Gaussian Splatting on one driving scene}
+\label{sec:track_c}
+
+\begin{table}[t]
+\centering
+\begin{subtable}[t]{\textwidth}
+\centering
+\adjustbox{max width=\textwidth}{\input{tables/track_c.tex}}
+\caption{Held-out metrics, number of Gaussians (initial and final), training minutes and render time per view on the \gpu{}. PSNR is mean $\pm$ standard deviation over views for seed 0; ``PSNR train'' is on a subset of training views. \GSseedCaption}
+\label{tab:track_c}
+\end{subtable}
+\caption{Track C ablation on \GSscene{}, \GStestViews{} held-out views at \GSimageW$\times$\GSimageH, \gpu{}.}
+\label{tab:track_c_all}
+\end{table}
+
+Table~\ref{tab:track_c} and Figure~\ref{fig:gs} show the ablation. The order of the variants is the same
+at both step budgets. Random initialisation is worst (\GSRandpsnr{} dB at 7k). Aggregated LiDAR
+initialisation is better on all three metrics (\GSLidarpsnr{} dB, a gain of \GSdeltaLidarRandom{} dB).
+Depth supervision from the scale-aligned Depth Pro maps improves held-out PSNR, SSIM and LPIPS again, and
+the larger weight does better: \GSDepthLopsnr{} dB at weight 0.05 (\GSdeltaDepthLoPsnr{} dB and
+\GSdeltaDepthLoLpips{} LPIPS over LiDAR initialisation) and \GSDepthHipsnr{} dB at weight 0.2
+(\GSdeltaDepthHiPsnr{} dB and \GSdeltaDepthHiLpips{} LPIPS). The 15k runs keep this order
+(\GSRandFifteenKpsnr, \GSLidarFifteenKpsnr, \GSDepthLoFifteenKpsnr{} and \GSDepthHiFifteenKpsnr{} dB), and
+the best variant improves its LPIPS to \GSDepthHiFifteenKlpips. Held-out PSNR, however, is lower at 15k
+than at 7k for every variant, while training-view PSNR goes up (\GSDepthHipsnrTrain{} to
+\GSDepthHiFifteenKpsnrTrain{} dB for the best variant). The longer runs also end with about twice as many
+Gaussians (\GSDepthHigaussians{} to \GSDepthHiFifteenKgaussians) and take \GSDepthHiFifteenKtrainMin{}
+instead of \GSDepthHitrainMin{} minutes on the \gpu{}.
+
+We repeated the 7k runs with \GSnSeeds{} seeds. The seed means are \GSRandpsnrSeedMean,
+\GSLidarpsnrSeedMean, \GSDepthLopsnrSeedMean{} and \GSDepthHipsnrSeedMean{} dB, with standard deviations
+between \GSDepthHipsnrSeedStd{} and \GSRandpsnrSeedStd{} dB. That spread is small against the gaps between
+the variants, and the order of the four variants is the same in every seed. The 15k runs were done with seed 0 only.
+
+The absolute quality is low for 3DGS, and the numbers should be read with that in mind. The held-out views
+are 0.5 s, which is several metres, away from the nearest training views. Every camera has its own
+exposure, moving people and cars are modelled as static and leave ghosts, and the training views cover the
+scene only once. Training-view PSNR is far below what dense captures reach, so the model is
+under-constrained rather than over-fitted.
+
+\begin{figure}[t]
+\centering
+\setlength{\tabcolsep}{2pt}\renewcommand{\arraystretch}{0.9}
+\begin{tabular}{cc}
+\small 7k steps & \small 15k steps \\
+\includegraphics[width=0.27\textwidth]{gs_random_cam_front.jpg} &
+\includegraphics[width=0.27\textwidth]{gs_random_15k_cam_front.jpg} \\
+\multicolumn{2}{c}{\small random initialisation} \\
+\includegraphics[width=0.27\textwidth]{gs_lidar_cam_front.jpg} &
+\includegraphics[width=0.27\textwidth]{gs_lidar_15k_cam_front.jpg} \\
+\multicolumn{2}{c}{\small LiDAR initialisation} \\
+\includegraphics[width=0.27\textwidth]{gs_lidar_depth0.05_cam_front.jpg} &
+\includegraphics[width=0.27\textwidth]{gs_lidar_depth0.05_15k_cam_front.jpg} \\
+\multicolumn{2}{c}{\small LiDAR initialisation + depth supervision, weight 0.05} \\
+\includegraphics[width=0.27\textwidth]{gs_lidar_depth0.2_cam_front.jpg} &
+\includegraphics[width=0.27\textwidth]{gs_lidar_depth0.2_15k_cam_front.jpg} \\
+\multicolumn{2}{c}{\small LiDAR initialisation + depth supervision, weight 0.2} \\
+\end{tabular}
+\caption{Track C, held-out CAM\_FRONT view of the first held-out timestamp, seed 0. Each panel shows the real frame (left) and the render (right). nuScenes images, CC BY-NC-SA 4.0.}
+\label{fig:gs}
+\end{figure}
+
+\subsection{Track D: single-image Gaussians rendered at the true next pose}
+\label{sec:track_d}
+
+\begin{table}[t]
+\centering
+\begin{subtable}[t]{\textwidth}
+\centering
+\adjustbox{max width=0.85\textwidth}{\input{tables/track_d.tex}}
+\caption{Track D: SHARP Gaussians from one CAM\_FRONT keyframe per scene (\SharpImages{} images), rendered at three poses and compared with the real frame on covered pixels. Motion is the mean camera translation.}
+\label{tab:track_d}
+\end{subtable}\\[4pt]
+\begin{subtable}[t]{\textwidth}
+\centering
+\adjustbox{max width=0.85\textwidth}{\input{tables/track_e.tex}}
+\caption{Track E on \NFtestPairs{} held-out pairs from scenes \NFholdoutScenes{}: PSNR and LPIPS against the real next frame. \NFseedCaption}
+\label{tab:track_e}
+\end{subtable}
+\caption{Synthesis tracks, means with 95\% bootstrap intervals.}
+\label{tab:synthesis}
+\end{table}
+
+SHARP's Gaussians re-render the input view almost perfectly (PSNR \SharpIdpsnr{} dB, LPIPS \SharpIdlpips{}
+at the identity pose, Table~\ref{tab:track_d}), so the pipeline itself is sound. Quality then drops quickly
+as the true camera motion grows. At the next 12 Hz sweep (\SharpSweepmotion{} m of forward motion on
+average) we measure \SharpSweeppsnr{} dB and LPIPS \SharpSweeplpips, and at the next keyframe
+(\SharpKeymotion{} m) \SharpKeypsnr{} dB and LPIPS \SharpKeylpips. Coverage is \SharpKeycoverage{} in both
+cases, because the ego vehicle drives into the part of the scene that the Gaussians already cover.
+Prediction takes \SharpPredictMs{} ms per image and a render \SharpRenderMs{} ms per view on the \gpu{}.
+We did not measure where in the image the error sits. Likely sources are content that the input photo could
+not see, such as the areas behind cars and poles and the road under the ego vehicle, and moving objects,
+which a single-image model freezes at their position at time $t$. With ten images, one per scene, the
+sample is too small to say more than this ordering. Figure~\ref{fig:sharp} shows two next-keyframe renders.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}[b]{0.49\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{sharp_scene-0061_next_keyframe.jpg}\\[2pt]
+  \includegraphics[width=\linewidth]{sharp_scene-0655_next_keyframe.jpg}
+  \caption{Track D: real next keyframe (left) and SHARP Gaussians of the previous keyframe rendered at its true pose (right), scenes 0061 and 0655.}
+  \label{fig:sharp}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.49\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{nextframe_grid.jpg}
+  \caption{Track E: current frame (top row), real next frame (middle) and one flow-matching sample (bottom), four held-out pairs at \NFw$\times$\NFh.}
+  \label{fig:nextframe}
+\end{subfigure}
+\caption{Synthesis tracks. nuScenes images, CC BY-NC-SA 4.0.}
+\label{fig:synthesis}
+\end{figure}
+
+\subsection{Track E: next-frame synthesis with conditional flow matching}
+\label{sec:track_e}
+
+Table~\ref{tab:track_e} and Figure~\ref{fig:nextframe} give the result. Under the fixed
+\NFFmmaxMinutes-minute budget on a shared GPU, one Euler sample from the flow-matching UNet is perceptually
+closer to the real next frame than the output of the regression UNet (LPIPS \NFFmlpips{} versus
+\NFReglpips, paired difference \NFpairedLpipsFmReg, interval excluding zero). Its PSNR is lower
+(\NFFmpsnr{} versus \NFRegpsnr{} dB), which is the usual trade-off between a sharp sample and a blurry
+mean. The copy baseline reaches \NFCopypsnr{} dB and LPIPS \NFCopylpips. The regression UNet is slightly
+above it in mean PSNR but far behind in LPIPS, and the flow-matching sample is behind it on both metrics (paired
+differences of \NFpairedPsnrFmCopy{} dB in PSNR and \NFpairedLpipsFmCopy{} in LPIPS). Consecutive frames
+are only \NFdtMedian{} s apart, so copying is a strong baseline, and a \NFFmparams{}M-parameter model
+trained for \NFFmsteps{} steps does not learn enough motion to beat it perceptually. The FID of
+unconditional samples against the held-out frames is \NFfid{} (\NFfidN{} generated frames at
+\NFw$\times$\NFh, upsampled for the Inception network). It is poor, and we report it only to show that the
+model was not simply memorising the condition. Sampling costs \NFsamplingMs{} ms per frame on the \gpu{}.
+Over \NFnSeeds{} seeds the flow-matching samples reach \NFFmpsnrSeedMean{} $\pm$ \NFFmpsnrSeedStd{} dB and
+LPIPS \NFFmlpipsSeedMean{} $\pm$ \NFFmlpipsSeedStd, and the regression model \NFRegpsnrSeedMean{} $\pm$
+\NFRegpsnrSeedStd{} dB and \NFReglpipsSeedMean{} $\pm$ \NFReglpipsSeedStd, so the picture does not depend
+on the seed.
+
+\subsection{Runtimes}
+\label{sec:runtimes}
+
+Table~\ref{tab:runtimes} lists every job with its wall-clock time on the \gpu{}. The Track A, B and C jobs
+ran one after another on an otherwise idle GPU, with two exceptions. A few short smoke tests shared the GPU
+during the Depth Pro rerun, which is why we report the median time per image, and the two Track E trainings
+of each seed shared the GPU with each other.
+
+\begin{table}[t]
+\centering
+\caption{Wall-clock time of every job on the \gpu{} (LiDAR projection on the CPU).}
+\label{tab:runtimes}
+\adjustbox{max width=0.8\textwidth,center}{\input{tables/runtimes.tex}}
+\end{table}
+
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{Scale versus shape.}
+The raw versus median-scaled split shows how much of the error one scalar per image removes on nuScenes:
+\DPscaleShare\% of Depth Pro's AbsRel, \DAVscaleShare\% of Depth Anything V2's and \MOGEscaleShare\% of
+MoGe-2's. Before scaling the three models are far apart (\MOGEabsrelRaw, \DPabsrelRaw{} and
+\DAVabsrelRaw). After scaling they are close (\MOGEabsrelScaled, \DPabsrelScaled{} and \DAVabsrelScaled).
+The models therefore differ much more in how well they guess the metric scale than in the shape they
+recover, and a ranking by raw error is to a large part a ranking of the scale guess. MoGe-2 leads on both
+counts here. A practical consequence is that any source of one scalar per image, for example a few LiDAR
+returns, a known object size or a multi-view constraint, is worth more for Depth Pro and Depth Anything V2
+than switching between the two. Track B points the same way. A multi-view model without metric scale, given
+one scalar per sequence, reaches the same AbsRel as median-scaled Depth Pro on identical pixels.
+
+\paragraph{Depth Pro and the true focal length.}
+Depth Pro's depth is proportional to the focal length it uses, $d = f\,/\,(W\,c)$, where $c$ is its
+canonical inverse depth. Its focal estimate is above the true nuScenes focal on every camera, most of all
+on the back camera, which has the shortest true focal. Even so, the output with the model's own focal is
+closer to metric than the output with the true focal. The scale factors explain this. With the true focal
+all six cameras show a similar under-estimation (scale \GTFscaleMin{} to \GTFscaleMax), so the canonical
+depth itself is too near on this data, and the over-estimated focal happens to compensate part of it. To
+rule out a bug on our side we cross-checked the result against the library's own known-focal path (maximum
+difference \FocalCheckMaxDiff{} m). For this model on this data, the correct intrinsics give a worse raw
+result overall than the model's own guess. The back camera is the exception (raw AbsRel
+\GTFabsrelBackRaw{} with the true focal against \DPabsrelBackRaw{} with the estimated one), because there
+the estimated focal over-compensates. We cannot tell from this data which of the two effects, the canonical
+depth or the focal estimate, reflects the training distribution. MoGe-2 does not show the effect. The true
+focal lowers its raw AbsRel from \MOGEabsrelRaw{} to \MOGEGTFabsrelRaw.
+
+\paragraph{Side cameras.}
+After scaling, the side cameras are the hardest for all three models, and for Depth Pro they are the
+hardest before scaling as well. We think the reason is content rather than optics. Side views are dominated
+by close, oblique facades, parked cars and vegetation, with many LiDAR returns under 20 m
+(Table~\ref{tab:lidar_gt}). This is only a hypothesis. Our data cannot separate it from a mismatch in focal
+length or field of view to the training distribution. One observation speaks against a pure focal effect:
+after scaling, the back camera, which has the shortest focal, is not the hardest for any of the three
+models (\DPabsrelBackScaled, \DAVabsrelBackScaled{} and \MOGEabsrelBackScaled).
+
+\paragraph{Why the geometry prior helps 3DGS.}
+The capture sees the scene once, with views 0.5 s apart. In that setting the photometric loss alone does
+not constrain the geometry enough, as the random-initialisation result shows. LiDAR points fix where
+surfaces are, and the aligned monocular map adds a dense target where LiDAR is sparse. Within the two
+weights we tested, more depth weight gives more gain, at both step budgets. The limit of the prior shows up
+as well. Training longer raises training-view PSNR but not held-out PSNR, which suggests that the model is
+limited by what the views constrain (exposure, moving objects and sky are not modelled) and not by the
+length of the optimisation.
+
+\paragraph{The copy-frame baseline.}
+At \NFdtMedian{} s spacing and \NFw$\times$\NFh{} resolution the next frame differs from the current one
+by a small motion. A copy of the current frame is therefore already close to the target in both PSNR and
+LPIPS, and a generative model has to reproduce the current frame exactly and also move it correctly just to
+break even. Track D shows a similar pattern. SHARP's geometry handles a \SharpSweepmotion{} m step well and
+a \SharpKeymotion{} m step poorly, because the parts of the next view that the current image does not
+contain have to be invented. In both tracks the quality of the synthesis ends where the geometry available
+from the input ends.
+
+\section{Limitations}
+\label{sec:limits}
+
+\begin{itemize}
+  \item \textbf{Mini split only.} nuScenes-mini has 10 scenes, \GTkeyframes{} keyframes and one city pair.
+        Nothing here is a claim about full nuScenes or other data.
+  \item \textbf{Seeds.} The 7k 3DGS runs use \GSnSeeds{} seeds and the next-frame models \NFnSeeds{}. The
+        15k 3DGS runs and the evaluations of the pretrained models were each done once. Bootstrap
+        intervals over views, pairs, images or sequences do not capture seed variance.
+  \item \textbf{Monocular model in Tracks B and C.} The paired comparison with VGGT and the depth
+        supervision for 3DGS both use Depth Pro. MoGe-2 was added to Track A afterwards and is more
+        accurate there, but Tracks B and C were not repeated with it.
+  \item \textbf{Static-scene assumption.} 3DGS and SHARP treat the scene as static, so moving people and
+        cars leave ghosts in every variant. We picked the most static scene for 3DGS, but it still contains
+        \GSsceneMoving{} moving annotations.
+  \item \textbf{Reduced resolution.} 3DGS trains and evaluates at \GSimageW$\times$\GSimageH, SHARP is
+        scored at \SharpEvalW$\times$\SharpEvalH{} and Track E uses \NFw$\times$\NFh{} frames. VGGT sees
+        518$\times$294 and its depth is upsampled to the LiDAR pixels.
+  \item \textbf{Sparse LiDAR ground truth.} There are only \GTptsMin{} to \GTptsMax{} points per image, and
+        they are biased towards the near range. Occlusion at depth discontinuities, moving objects and
+        LiDAR-camera time offsets add noise that no model can remove, and z-buffering cannot remove points
+        that are occluded for the camera but visible for the LiDAR.
+  \item \textbf{Models as published.} The zero-shot models use their public weights and default
+        preprocessing. Depth Anything V2 metric outdoor is fine-tuned on Virtual KITTI, so its scale
+        reflects KITTI's camera. Depth Pro and SHARP assume the principal point at the image centre, while
+        \PPsentence{}.
+  \item \textbf{Fixed budgets, single machine.} 3DGS uses fixed step budgets without tuning. The Track E
+        models are tiny, trained under a wall-clock cap on a shared GPU and sampled once per pair with
+        plain Euler, and an FID over a few hundred small frames is only indicative. Every timing is from
+        one \gpu{}, and the distributed code path was only smoke-tested on it.
+\end{itemize}
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+On this driving data, zero-shot monocular depth models recover shape much better than metric scale. A
+feed-forward multi-view model with one scale per sequence reaches the accuracy of median-scaled Depth Pro on
+identical pixels and
+also gives accurate relative rotations between consecutive frames. The scale-aligned monocular depth helps
+Gaussian Splatting from sparse views. Synthesis from a single image or frame holds up only for small
+changes. A pose change of \SharpSweepmotion{} m costs little and one of \SharpKeymotion{} m costs a lot,
+and at \NFdtMedian{} s spacing a copy of the current frame is perceptually closer to the next frame than
+our small generative model. All of this was measured on ten scenes and one GPU with few seeds, so it should
+be taken as a small, checkable data point and not as a benchmark. Everything can be regenerated with the
+released scripts.
+
+\section*{Reproducibility statement}
+
+The code, the measured json files and the scripts that write every table and macro of this report are at
+\url{https://github.com/pavanyadava007/depth3d-lab}. There is one script per experiment in
+\texttt{scripts/}, and the json files they write are in \texttt{results/}. \texttt{paper/make\_tables.py}
+and \texttt{paper/make\_figs.py} regenerate \texttt{paper/tables/}, \texttt{paper/numbers.tex} and
+\texttt{paper/figs/}, and Tectonic compiles \texttt{paper/main.tex}. The environment is Python 3.10, torch
+2.7.1 with CUDA 12.6 wheels and gsplat 1.5.3 on one \gpu{} (23 GB). No number in the prose is typed by
+hand. Each is a macro written by \texttt{make\_tables.py}, and a missing result file produces the words
+``not measured'' instead of a value.
+
+{\footnotesize\setlength{\bibsep}{1.5pt}
+\bibliographystyle{plainnat}
+\bibliography{refs}}
+
+\end{document}

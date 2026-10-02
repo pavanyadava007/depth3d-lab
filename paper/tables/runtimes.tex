@@ -1,0 +1,21 @@
+\footnotesize\renewcommand{\arraystretch}{0.92}
+\begin{tabular}{llr}
+\toprule
+job & size & minutes (NVIDIA L4) \\
+\midrule
+LiDAR GT projection (CPU) & 2,424 images & 0.4 \\
+Track A DA-V2 outdoor L & 2,424 images, 365 ms/img median & 14.9 \\
+Track A Depth Pro & 2,424 images, 599 ms/img median & 26.5 \\
+Track A MoGe-2 & 2,424 images, 188 ms/img median & 8.0 \\
+Track C 3DGS, 4 variants (seed 0) & 7,000 steps each, 33.3 to 77.7 steps/s & 11.5 (sum) \\
+Track C 3DGS, 4 variants (seed 0) & 15,000 steps each, 19.5 to 56.2 steps/s & 37.5 (sum) \\
+Track C 3DGS, additional seeds & 8 runs & 22.4 (sum) \\
+Track B VGGT (+ Depth Pro on reference views) & 80 sequences & 2.0 \\
+Track E train fm & 2,150 steps, 0.9 steps/s (GPU shared with the other training) & 40.0 \\
+Track E train regression & 2,150 steps, 0.9 steps/s (GPU shared with the other training) & 40.0 \\
+Track E training, additional seeds & 4 runs & 160.1 (sum) \\
+Track E eval (sampling only) & 467 pairs, 173.8 ms/sample & 1.4 \\
+Track E DDP smoke (torchrun, gloo, 2 ranks on one GPU) & 20 steps, world size 2 & 0.08 \\
+Track D SHARP & 10 images, 5496 ms predict, 22.0 ms render per view & n/a \\
+\bottomrule
+\end{tabular}

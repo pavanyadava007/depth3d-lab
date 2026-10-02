@@ -1,0 +1,10 @@
+\footnotesize\renewcommand{\arraystretch}{0.92}
+\begin{tabular}{lrrrr}
+\toprule
+method & PSNR [95\% CI] & LPIPS [95\% CI] & PSNR mean $\pm$ std (seeds) & LPIPS mean $\pm$ std (seeds) \\
+\midrule
+flow matching, one Euler sample & 23.82 [23.61, 24.04] & 0.099 [0.096, 0.102] & 23.80 $\pm$ 0.10 (n=3) & 0.098 $\pm$ 0.006 \\
+regression UNet (L2) & 24.74 [24.52, 24.98] & 0.121 [0.119, 0.123] & 24.92 $\pm$ 0.19 (n=3) & 0.120 $\pm$ 0.003 \\
+copy current frame & 24.38 [24.09, 24.69] & 0.040 [0.038, 0.042] & 24.38 $\pm$ 0.00 (n=3) & 0.040 $\pm$ 0.000 \\
+\bottomrule
+\end{tabular}

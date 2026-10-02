@@ -123,7 +123,8 @@ measured numbers on purpose.
   objects, rolling shutter); z-buffering keeps the nearest return per pixel but cannot remove points that are
   occluded for the camera and visible for the LiDAR.
 - Depth Pro assumes the principal point at the image centre when it turns field of view into focal length; the
-  nuScenes principal points are within a few pixels of the centre horizontally and about 40 px vertically.
+  nuScenes principal points are tens of pixels off-centre in both directions (measured per camera by
+  scripts/camera_intrinsics.py, results/camera_intrinsics.json).
 - Track C metrics are for half-resolution renders against half-resolution photos; the scene is treated as
   static; camera exposures differ between the six cameras; no sky model.
 - Track B compares two differently aligned quantities by necessity (VGGT has no metric scale); both a per-sequence
